@@ -1,0 +1,199 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+create-host - Create new host entry inside existing network
+
+=head1 SYNOPSIS
+
+create-host FILE network-name host-name host-ip [host-owner]
+
+=head1 COPYRIGHT AND DISCLAIMER
+
+(c) 2019 by Heinz Knutzen <heinz.knutzen@googlemail.com>
+
+http://hknutzen.github.com/Netspoc-API
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+=cut
+
+use strict;
+use warnings;
+use open qw(:std :utf8);
+use File::Basename;
+use File::Temp;
+use Pod::Usage;
+
+# Indent "=" in added line with tabs to this position.
+my $eq_pos = 40;
+
+sub abort {
+    my (@args) = @_;
+    die "Error: ", @args, "\n";
+}
+
+sub find_ip {
+    my ($name) = @_;
+    if(my ($ip) = $name =~ /(\d+_\d+_\d+_\d+)$/) {
+        $ip =~ s/_/./g;
+        return $ip;
+    }
+    return '0.0.0.0';
+}
+
+sub ip2bitstr {
+    my ($ip) = @_;
+    return pack 'C4', split('\.', $ip);
+}
+
+sub compare_ip {
+    my ($ip1, $ip2) = @_;
+    return ip2bitstr($ip1) cmp ip2bitstr($ip2);
+}
+
+####################################################################
+# Argument processing
+####################################################################
+
+# Make @ARGV utf-8.
+$_ = Encode::decode('UTF-8' , $_) for @ARGV;
+
+my $net_name = shift @ARGV or pod2usage(2);
+my $host_name = shift @ARGV or pod2usage(2);
+my $ip = shift @ARGV or pod2usage(2);
+my $owner_name = shift @ARGV;
+@ARGV and pod2usage(2);
+
+####################################################################
+# Main program
+####################################################################
+
+# Read lines of to be changed file from STDIN.
+my @lines = <>;
+
+# Number of current line.
+my $pos = 0;
+
+# Range of line numbers, where hosts are expected.
+my $start_pos;
+my $end_pos;
+
+# Find definition of to be changed network.
+# "=" must be located on same line.
+while ($pos < @lines) {
+    if ($lines[$pos] =~ /^\s* network:$net_name \s* =/x) {
+        $start_pos = $pos;
+        last;
+    }
+    $pos++;
+}
+if (not defined $start_pos) {
+    abort("Can't find network:$net_name");
+}
+
+# Find next toplevel definition or end of file.
+$pos++;
+while ($pos < @lines) {
+    if ($lines[$pos] =~ /^ \s*
+       (network|router|any|group|area|service|owner|
+        protocol|protocolgroup|pathrestriction|isakmp|ipsec|crypto):/x)
+    {
+        last;
+    }
+    $pos++;
+}
+
+# Go back to closing brace at end of network definition.
+$pos--;
+while(1) {
+    if ($lines[$pos] =~ /^ [^#]* \} /x) {
+        $end_pos = $pos;
+        last;
+    }
+    $pos--;
+    if ($pos < $start_pos) {
+        abort("Can't find closing brace");
+    }
+}
+
+# Split line, if closing brace isn't located on separate line.
+if ($lines[$pos] =~ /^ (.+) (\} .*) $/x) {
+    my $prefix = $1;
+    my $brace = $2;
+    splice(@lines, $pos, 1, "$prefix\n", "$brace\n");
+    $end_pos++;
+}
+
+# Search smaller host definition starting from end.
+my $host_pos;
+$pos = $end_pos - 1;
+while(1) {
+    if ($lines[$pos] =~ /^ \s* host:([-\w]+)/x) {
+        my $name = $1;
+        if ($name eq $host_name) {
+            abort("Duplicate definition of host:$name");
+        }
+        my $host_ip = find_ip($name);
+        my $cmp = compare_ip($ip, $host_ip);
+        if ($cmp == 0) {
+            abort("Duplicate IP in host:$host_name and host:$name");
+        }
+
+        # Found host has smaller IP, hence insert after this line
+        if ($cmp > 0) {
+            $pos++;
+            last;
+        }
+        $host_pos = $pos;
+    }
+    $pos--;
+
+    if ($pos <= $start_pos) {
+
+        # Insert before first host
+        if ($host_pos) {
+            $pos = $host_pos;
+
+            # If host has comment line, insert before comment.
+            if ($lines[$pos - 1] =~ /^\s*#/) {
+                $pos--;
+            }
+            last;
+        }
+
+        # No host found, insert before closing brace.
+        $pos = $end_pos;
+        last;
+    }
+}
+
+# Insert new host at found position $pos.
+# Put "=" at position 40 by adding tab characters, assuming tab width of 8.
+my $new = " host:$host_name";
+my $space = $eq_pos - length($new);
+$space = 0 if $space < 0;
+my $tabs = int($space / 8) + 1;
+$new .= "\t"x$tabs;
+$new .=  "= { ip = $ip;";
+if ($owner_name) {
+    $new .= " owner = $owner_name;";
+}
+$new .= " }\n";
+splice(@lines, $pos, 0, $new);
+
+
+# Write changed lines to STDOUT.
+print @lines;

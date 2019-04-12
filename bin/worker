@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# Process job for Netspoc-API
+USAGE="Usage: $0 FILE"
+
+# - Get name of job file as argument,
+# - read method and params from job
+# - find to be processed netspoc file
+# - call filter with found file as STDIN, writing changed content to STDOUT
+# - write output to tempfile
+# - make original file writable
+# - move tempfile to original file
+
+
+# Abort on each error
+set -e
+
+HOME=$HOME/Netspoc-API
+PATH=$HOME/bin:$PATH
+NETSPOC=$HOME/netspoc
+
+# Ignore this files in netspoc directory
+EGREP='egrep --exclude='*~' --exclude='.#*' --exclude-dir=CVS'
+
+abort () { echo "Error: $*" >&2; exit 1; }
+
+getParams () {
+    local query=''
+    for i in $* ; do
+        query="$query $i=\(.$i)"
+    done
+    eval "$(jq -r ".params | @sh \"$query\"" $job)"
+}
+
+CreateHost () {
+    getParams network name ip owner mask
+    if [ "$network" = '[auto]' ] ; then
+        # Convert host IP and mask to network IP/prefixlen.
+        local net_addr=$(net-addr $ip $mask | sed 's/[.]/\\./g')
+        local pattern="^[^#]*ip[[:space:]]*=[[:space:]]*$net_addr"
+        # Search files containing IP pattern
+        # and collect found filenames into array
+        found=($($EGREP -rl "$pattern" $NETSPOC )) ||
+            abort "Can't find network with address '$net_addr' in $NETSPOC"
+        [ ${#found[*]} -gt 1 ] &&
+            abort "Found multiple occurrences of address '$net_addr' in:" \
+                  ${found[*]}
+        # Find network:NAME up to 20 lines before IP pattern.
+        network=$(egrep -B20 "$pattern" $found |
+                         egrep '^[^#]+' |
+                         egrep -o 'network:[^[:space:]]+' |
+                         cut -d: -f2) ||
+            abort "Can't find network definition for '$net_addr' in $found"
+    else
+        # Search files containing network definition
+        # and collect found filenames into array
+        found=($($EGREP -rl "^[^#]*network:$network[[:space:]]*=" $NETSPOC)) ||
+            abort "Can't find 'network:$network' in $NETSPOC"
+        [ ${#found[*]} -gt 1 ] &&
+            abort "Found multiple occurrences of 'network:$network' in:" \
+                  ${found[*]}
+    fi
+    filter="create-host $network $name $ip"
+    if [ "$owner" != 'null' ] ; then
+        filter="$filter $owner"
+    fi
+}
+
+[ $# -eq 1 ] || abort $USAGE
+job=$1
+
+method=$(jq -r '.method' $job)
+case $method in
+    'CreateHost')
+        CreateHost
+        ;;
+    *)
+        abort "Unknown method '$method'"
+esac
+
+tmpfile=$(mktemp -p $HOME)
+trap "rm -f $tmpfile" EXIT
+$filter < $found > $tmpfile
+# Move tempfile to original file.
+chmod u+w $found
+mv $tmpfile $found
+chmod go+r $found
