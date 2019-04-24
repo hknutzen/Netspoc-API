@@ -12,14 +12,14 @@ abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 
 # Try to check in.
 while true; do
-    if cvs -q commit -m'$MSG' netspoc >/dev/null 2>err; then
+    if cvs -Q commit -m'$MSG' netspoc 2>err; then
         break;
     fi
     # Try again if Up-to-date check failed
     if [ -n "$(cat err | egrep -v '^cvs commit: Up-to-date check failed for|^cvs \[commit aborted\]: correct above errors first!$')" ] ; then
         abort-err "Error during cvs commit:"
     fi
-    cvs -q update netspoc >/dev/null >out 2>err ||
+    cvs -q update netspoc >/dev/null 2>err ||
         abort-err "during cvs update (after change):"
     # Check for merge conflict
     if [ -n "$(cat err | egrep '^cvs update: conflicts found in')" ] ; then

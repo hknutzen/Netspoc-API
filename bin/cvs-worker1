@@ -32,13 +32,9 @@ wait_log_available
 grep '^Warning:' $LOG >warn || true
 
 # Get updated files.
-if [ -d netspoc ] ; then
-    cvs -q update -C netspoc >/dev/null 2>err ||
-        abort-err "Error during cvs update:"
-else
-    cvs -q checkout netspoc >/dev/null 2>err ||
-        abort-err "Error during initial cvs checkout:"
-fi
+rm -rf netspoc
+cvs -Q checkout netspoc 2>err ||
+    abort-err "Error during initial cvs checkout:"
 
 bin/worker $*
 
