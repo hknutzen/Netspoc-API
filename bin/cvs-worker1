@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Initialize or update CVS files, then call worker and netspoc.
+
+# Abort on each error
+set -e
+
+# Directory, where system user stores and compiles versions of netspoc files.
+POLICYDB=$(get-netspoc-approve-conf netspocdir)
+CURRENT=$POLICYDB/current
+NEXT=$POLICYDB/next
+LOG=$CURRENT/compile.log
+# File exists if compile failed and compile.log may be outdated.
+FAILED=$NEXT/failed
+
+
+# Work in $HOME where paths are known.
+cd $HOME
+
+abort () { echo "Error: $*" >&2; exit 1; }
+abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
+
+# Wait for successful run of 'newpolicy'.
+wait_log_available () {
+    while [ -f $FAILED ] || ! [ -f $LOG ] ; do sleep 1 ; done
+}
+
+# Wait until valid configuration has been processed by 'newpolicy'.
+wait_log_available
+
+# Read warnings in log file. It is OK if no warnings found.
+grep '^Warning:' $LOG >warn || true
+
+# Get updated files.
+if [ -d netspoc ] ; then
+    cvs -q update -C netspoc >/dev/null 2>err ||
+        abort-err "Error during cvs update:"
+else
+    cvs -q checkout netspoc >/dev/null 2>err ||
+        abort-err "Error during initial cvs checkout:"
+fi
+
+bin/worker $*
+
+# Compile changed files, check for errors.
+if ! netspoc -q netspoc code 2>err ; then
+    abort-err "Netspoc failed:"
+fi
+
+# Warning occurred.
+if [ -s err ] ; then
+
+    # Compare warnings from newpolicy with current warnings
+    if ! grep '^Warning:' err | cmp -s warn - ; then
+        abort-err "Netspoc warnings:"
+    fi
+fi

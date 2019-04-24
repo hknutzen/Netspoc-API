@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 =head1 NAME
 
@@ -130,10 +130,13 @@ while(1) {
 }
 
 # Split line, if closing brace isn't located on separate line.
-if ($lines[$pos] =~ /^ (.+) (\} .*) $/x) {
+# Ignore trailing whitespace after first part.
+# Leave comment at first part.
+if ($lines[$pos] =~ /^ (.+?) \s* (\} [^\}\n]*? ) (\s*[#].*)? $/x) {
     my $prefix = $1;
     my $brace = $2;
-    splice(@lines, $pos, 1, "$prefix\n", "$brace\n");
+    my $comment = $3 ||'';
+    splice(@lines, $pos, 1, "$prefix$comment\n", "$brace\n");
     $end_pos++;
 }
 
@@ -149,7 +152,7 @@ while(1) {
         my $host_ip = find_ip($name);
         my $cmp = compare_ip($ip, $host_ip);
         if ($cmp == 0) {
-            abort("Duplicate IP in host:$host_name and host:$name");
+            abort("Duplicate IP for host:$host_name and host:$name");
         }
 
         # Found host has smaller IP, hence insert after this line

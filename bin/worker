@@ -15,9 +15,8 @@ USAGE="Usage: $0 FILE"
 # Abort on each error
 set -e
 
-HOME=$HOME/Netspoc-API
-PATH=$HOME/bin:$PATH
-NETSPOC=$HOME/netspoc
+# Work in $HOME where paths are known.
+cd $HOME
 
 # Ignore this files in netspoc directory
 EGREP='egrep --exclude='*~' --exclude='.#*' --exclude-dir=CVS'
@@ -36,31 +35,35 @@ CreateHost () {
     getParams network name ip owner mask
     if [ "$network" = '[auto]' ] ; then
         # Convert host IP and mask to network IP/prefixlen.
-        local net_addr=$(net-addr $ip $mask | sed 's/[.]/\\./g')
-        local pattern="^[^#]*ip[[:space:]]*=[[:space:]]*$net_addr"
+        local net_addr=$(bin/net-addr $ip $mask)
+        local pattern=$(echo $net_addr | sed 's/[.]/\\./g')
+        pattern="^[^#]*ip[[:space:]]*=[[:space:]]*$pattern"
         # Search files containing IP pattern
         # and collect found filenames into array
-        found=($($EGREP -rl "$pattern" $NETSPOC )) ||
-            abort "Can't find network with address '$net_addr' in $NETSPOC"
+        found=($($EGREP -rl "$pattern" netspoc )) ||
+            abort "Can't find network with 'ip = $net_addr' in netspoc/"
         [ ${#found[*]} -gt 1 ] &&
-            abort "Found multiple occurrences of address '$net_addr' in:" \
+            abort "Found multiple occurrences of 'ip = $net_addr' in:" \
                   ${found[*]}
-        # Find network:NAME up to 20 lines before IP pattern.
-        network=$(egrep -B20 "$pattern" $found |
+        # Find occurrences of network:NAME up to 20 lines before IP pattern.
+        network=($(egrep -B20 "$pattern" $found |
                          egrep '^[^#]+' |
-                         egrep -o 'network:[^[:space:]]+' |
-                         cut -d: -f2) ||
-            abort "Can't find network definition for '$net_addr' in $found"
+                         egrep -o 'network:[^[:space:]]+')) ||
+            abort "Can't find network definition for 'ip = $net_addr' in $found"
+        [ ${#network[*]} -gt 1 ] &&
+            abort "Found multiple networks with 'ip = $net_addr' in $found:" \
+                  ${network[*]}
+        network=$(echo $network | cut -d: -f2)
     else
         # Search files containing network definition
         # and collect found filenames into array
-        found=($($EGREP -rl "^[^#]*network:$network[[:space:]]*=" $NETSPOC)) ||
-            abort "Can't find 'network:$network' in $NETSPOC"
+        found=($($EGREP -rl "^[^#]*network:$network[[:space:]]*=" netspoc)) ||
+            abort "Can't find 'network:$network' in netspoc"
         [ ${#found[*]} -gt 1 ] &&
             abort "Found multiple occurrences of 'network:$network' in:" \
                   ${found[*]}
     fi
-    filter="create-host $network $name $ip"
+    filter="bin/create-host $network $name $ip"
     if [ "$owner" != 'null' ] ; then
         filter="$filter $owner"
     fi

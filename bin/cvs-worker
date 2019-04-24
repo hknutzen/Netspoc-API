@@ -1,0 +1,4 @@
+#!/bin/bash
+
+bin/cvs_worker1 $* &&
+bin/cvs_worker2 $*
