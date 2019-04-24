@@ -184,7 +184,7 @@ while(1) {
 }
 
 # Insert new host at found position $pos.
-# Put "=" at position 40 by adding tab characters, assuming tab width of 8.
+# Put "=" at position $eq_pos by adding tab characters, assuming tab width of 8.
 my $new = " host:$host_name";
 my $space = $eq_pos - length($new);
 $space = 0 if $space < 0;
