@@ -216,6 +216,45 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'Add host, insert sorted';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.1.1.0/24;
+ # Comment1
+ host:name_10_1_1_2 = { ip = 10.1.1.2; }
+ # Comment2
+ # Comment3
+ host:name_10_1_1_5 = { ip = 10.1.1.5; }
+ host:name_10_1_1_6 = { ip = 10.1.1.6; }
+}
+END
+
+$job = {
+    method => 'CreateHost',
+    params => {
+        network => 'a',
+        name    => 'name_10_1_1_4',
+        ip      => '10.1.1.4',
+    }
+};
+
+$out = <<'END';
+Index: netspoc/topology
+@@ -1,6 +1,7 @@
+ network:a = { ip = 10.1.1.0/24;
+  # Comment1
+  host:name_10_1_1_2 = { ip = 10.1.1.2; }
++ host:name_10_1_1_4			= { ip = 10.1.1.4; }
+  # Comment2
+  # Comment3
+  host:name_10_1_1_5 = { ip = 10.1.1.5; }
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
 $title = 'Add host, same name';
 ############################################################
 
@@ -274,8 +313,8 @@ $title = 'Add host, same IP unsorted';
 $in = <<'END';
 -- topology
 network:a = { ip = 10.1.1.0/24;
+ host:name_10_1_1_5 = { ip = 10.1.1.5; }
  host:name_10_1_1_4 = { ip = 10.1.1.4; }
- host:name_10_1_1_3 = { ip = 10.1.1.3; }
 }
 END
 
@@ -297,9 +336,9 @@ Aborted with 2 error(s)
 Index: netspoc/topology
 @@ -1,4 +1,5 @@
  network:a = { ip = 10.1.1.0/24;
-  host:name_10_1_1_4 = { ip = 10.1.1.4; }
-  host:name_10_1_1_3 = { ip = 10.1.1.3; }
 + host:name_10_1_1_4			= { ip = 10.1.1.4; }
+  host:name_10_1_1_5 = { ip = 10.1.1.5; }
+  host:name_10_1_1_4 = { ip = 10.1.1.4; }
  }
 END
 
@@ -532,6 +571,7 @@ network:a = {
  # Comment
 #network:b
  ip = 10.1.0.0/21;
+ # Comment2
 }
 END
 
@@ -547,10 +587,10 @@ $job = {
 
 $out = <<'END';
 Index: netspoc/topology
-@@ -4,4 +4,5 @@
-  # Comment
+@@ -5,4 +5,5 @@
  #network:b
   ip = 10.1.0.0/21;
+  # Comment2
 + host:name_10_1_1_4			= { ip = 10.1.1.4; }
  }
 END

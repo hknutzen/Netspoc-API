@@ -140,12 +140,12 @@ if ($lines[$pos] =~ /^ (.+?) \s* (\} [^\}\n]*? ) (\s*[#].*)? $/x) {
     $end_pos++;
 }
 
-# Search smaller host definition starting from end.
-my $host_pos;
-$pos = $end_pos - 1;
-while(1) {
-    if ($lines[$pos] =~ /^ \s* host:([-\w]+)/x) {
-        my $name = $1;
+# Search $pos, where to insert new host.
+# Insert before next larger host.
+# If no larger host found, insert before closing brace.
+$pos = $start_pos + 1;
+while($pos < $end_pos) {
+    if (my ($name) = $lines[$pos] =~ /^ \s* host:([-\w]+)/x) {
         if ($name eq $host_name) {
             abort("Duplicate definition of host:$name");
         }
@@ -155,31 +155,18 @@ while(1) {
             abort("Duplicate IP for host:$host_name and host:$name");
         }
 
-        # Found host has smaller IP, hence insert after this line
-        if ($cmp > 0) {
-            $pos++;
+        # Found host has larger IP, hence insert at this line
+        if ($cmp < 0) {
             last;
         }
-        $host_pos = $pos;
     }
-    $pos--;
+    $pos++;
+}
 
-    if ($pos <= $start_pos) {
-
-        # Insert before first host
-        if ($host_pos) {
-            $pos = $host_pos;
-
-            # If host has comment line, insert before comment.
-            if ($lines[$pos - 1] =~ /^\s*#/) {
-                $pos--;
-            }
-            last;
-        }
-
-        # No host found, insert before closing brace.
-        $pos = $end_pos;
-        last;
+# If found host has comment line(s), insert before comment.
+if ($pos < $end_pos) {
+    while ($lines[$pos - 1] =~ /^\s*#/) {
+        $pos--;
     }
 }
 
