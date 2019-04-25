@@ -6,7 +6,7 @@ create-host - Create new host entry inside existing network
 
 =head1 SYNOPSIS
 
-create-host FILE network-name host-name host-ip [host-owner]
+create-host network-name host-name host-ip [host-owner]
 
 =head1 COPYRIGHT AND DISCLAIMER
 
