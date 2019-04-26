@@ -75,7 +75,7 @@ CreateHost () {
     else
         # Search files containing network definition
         # and collect found filenames into array
-        found=($($EGREP -rl "^[^#]*network:$network[[:space:]]*=" netspoc)) ||
+        found=($($EGREP -rl "^[[:space:]]*network:$network[[:space:]]*=" netspoc)) ||
             abort "Can't find 'network:$network' in netspoc"
         [ ${#found[*]} -gt 1 ] &&
             abort "Found multiple occurrences of 'network:$network' in:" \
@@ -90,7 +90,7 @@ CreateHost () {
 CreateOwner () {
     getParams name @admins @watchers ok_if_exists
     found=netspoc/owner
-    if $EGREP -q "^[^#]*owner:$name[[:space:]]*=" $found; then
+    if $EGREP -q "^[[:space:]]*owner:$name[[:space:]]*=" $found; then
         if [ "$ok_if_exists" != 'null' ] ; then
 
             # Owner already exists, nothing to do
@@ -101,6 +101,17 @@ CreateOwner () {
     if [ "$watchers" != 'null' ] ; then
         filter="$filter $watchers"
     fi
+}
+
+AddToGroup () {
+    getParams name object
+    # Search files containing group definition
+    # and collect found filenames into array
+    found=($($EGREP -rl "^[[:space:]]*group:$name[[:space:]]*=" netspoc)) ||
+            abort "Can't find 'network:$network' in netspoc"
+    [ ${#found[*]} -gt 1 ] &&
+        abort "Found multiple occurrences of 'group:$name' in:" ${found[*]}
+    filter="bin/add-to-group $name $object"
 }
 
 # Call this script recursively for each sub job
@@ -119,14 +130,11 @@ job=$1
 
 method=$(jq -r '.method' $job)
 case $method in
-    'CreateHost')
-        CreateHost
+    CreateHost|CreateOwner|AddToGroup)
+        $method
         ;;
-    'CreateOwner')
-        CreateOwner
-        ;;
-    'MultiJob')
-        MultiJob
+    MultiJob)
+        $method
         exit 0
         ;;
     *)
