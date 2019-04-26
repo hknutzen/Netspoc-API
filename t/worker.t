@@ -804,15 +804,13 @@ test_err($title, $in, $job, $out);
 $title = 'Add host, can\'t find network for found [auto] IP';
 ############################################################
 
-$in = <<'END';
+my $many_comments = "#\n" x 50;
+$in = <<"END";
 -- topology
 network:a = {
-#
+$many_comments
  ip = 10.1.0.0/21; }
 END
-
-my $many_comments = "#\n" x 50;
-$in =~ s/#/$many_comments/;
 
 $job = {
     method => 'CreateHost',
@@ -842,6 +840,39 @@ network:b = { ip = 10.1.0.0/21; nat:b = { hidden; } }
 router:r1 = {
  interface:a = { bind_nat = b; }
  interface:b = { bind_nat = a; }
+}
+END
+
+$job = {
+    method => 'CreateHost',
+    params => {
+        network => '[auto]',
+        name    => 'name_10_1_1_4',
+        ip      => '10.1.1.4',
+        mask    => '255.255.248.0',
+    }
+};
+
+$out = <<'END';
+Error: Found multiple networks with 'ip = 10.1.0.0/21' in netspoc/topology: network:a network:b
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Add host, find NAT IP from [auto]';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.1.0.0/21; nat:a = { hidden; } }
+network:b = { ip = 10.2.0.0/21; nat:b = { ip = 10.1.0.0/21; } }
+network:c = { ip = 10.3.0.0/21; }
+
+router:r1 = {
+ interface:a;
+ interface:b = { bind_nat = a; }
+ interface:c = { bind_nat = a, b; }
 }
 END
 
