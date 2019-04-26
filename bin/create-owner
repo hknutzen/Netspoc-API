@@ -1,0 +1,111 @@
+#!/usr/bin/env perl
+
+=head1 NAME
+
+create-owner - Create new owner entry
+
+=head1 SYNOPSIS
+
+create-host owner-name admin,admin,... [watcher,...]
+
+=head1 COPYRIGHT AND DISCLAIMER
+
+(c) 2019 by Heinz Knutzen <heinz.knutzen@googlemail.com>
+
+http://hknutzen.github.com/Netspoc-API
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+=cut
+
+use strict;
+use warnings;
+use open qw(:std :utf8);
+use File::Basename;
+use File::Temp;
+use Pod::Usage;
+
+sub abort {
+    my (@args) = @_;
+    die "Error: ", @args, "\n";
+}
+
+####################################################################
+# Argument processing
+####################################################################
+
+# Make @ARGV utf-8.
+$_ = Encode::decode('UTF-8' , $_) for @ARGV;
+
+my $owner_name = shift @ARGV or pod2usage(2);
+my $admins = shift @ARGV or pod2usage(2);
+my $watchers = shift @ARGV;
+@ARGV and pod2usage(2);
+
+####################################################################
+# Main program
+####################################################################
+
+# Read lines of to be changed file from STDIN.
+my @lines = <>;
+
+# Number of current line.
+my $pos = 0;
+
+# Owners are assumed to be sorted by name.
+# Search $pos, where to insert new owner.
+# Compare case insensitive.
+# Insert before next larger owner.
+# If no larger owner found, insert at last line.
+# "=" must be located on same line.
+while ($pos < @lines) {
+    if (my ($name) = $lines[$pos] =~ /^ \s* owner:([-\w]+) \s* =/x) {
+
+        # Found owner is larger, hence insert at this line
+        if (lc($name) gt lc($owner_name)) {
+            last;
+        }
+    }
+    $pos++;
+}
+
+# If found owner has comment line(s), insert before comment.
+if ($pos < @lines) {
+    while ($lines[$pos - 1] =~ /^\s*#/) {
+        $pos--;
+    }
+}
+
+# Insert new owner at found position $pos.
+my $new = "owner:$owner_name = {\n";
+$new .= " admins =\n";
+for my $admin (split ',', $admins) {
+    $new .= "\t$admin,\n";
+}
+$new .= "\t;\n";
+if ($watchers) {
+    $new .= " watchers =\n";
+    for my $watcher (split ',', $watchers) {
+        $new .= "\t$watcher,\n";
+    }
+    $new .= "\t;\n";
+}
+$new .= "}\n\n";
+
+splice(@lines, $pos, 0, $new);
+
+
+# Write changed lines to STDOUT.
+print @lines;

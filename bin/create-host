@@ -146,14 +146,8 @@ if ($lines[$pos] =~ /^ (.+?) \s* (\} [^\}\n]*? ) (\s*[#].*)? $/x) {
 $pos = $start_pos + 1;
 while($pos < $end_pos) {
     if (my ($name) = $lines[$pos] =~ /^ \s* host:([-\w]+)/x) {
-        if ($name eq $host_name) {
-            abort("Duplicate definition of host:$name");
-        }
         my $host_ip = find_ip($name);
         my $cmp = compare_ip($ip, $host_ip);
-        if ($cmp == 0) {
-            abort("Duplicate IP for host:$host_name and host:$name");
-        }
 
         # Found host has larger IP, hence insert at this line
         if ($cmp < 0) {

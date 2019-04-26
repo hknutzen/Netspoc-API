@@ -16,21 +16,39 @@ USAGE="Usage: $0 FILE"
 set -e
 
 # Work in $HOME where paths are known.
-cd $HOME
+#cd $HOME
 
 # Ignore this files in netspoc directory
 EGREP='egrep --exclude='*~' --exclude='.#*' --exclude-dir=CVS'
 
 abort () { echo "Error: $*" >&2; exit 1; }
 
+# Parameters are names of JSON attributes,
+# also used as shell variables.
+# Use "@name" for JSON attribute with array value.
 getParams () {
     local query=''
+    local q=''
     for i in $* ; do
-        query="$query $i=\(.$i)"
+
+        # Convert string "a" to 'a', array ["a", "b"] to 'a b'
+        case $i in
+            @*)
+                i=$(echo $i | sed 's/^@//')
+                q=".$i | if . then . | join(\",\") else . end"
+                ;;
+            *)
+                q=".$i"
+                ;;
+        esac
+        query="$query $i=\($q)"
     done
     eval "$(jq -r ".params | @sh \"$query\"" $job)"
 }
 
+# Functions set global variables:
+# $found: filename that is to be processed
+# $filter: command line that reads from STDIN and writes to STDOUT
 CreateHost () {
     getParams network name ip owner mask
     if [ "$network" = '[auto]' ] ; then
@@ -69,6 +87,22 @@ CreateHost () {
     fi
 }
 
+CreateOwner () {
+    getParams name @admins @watchers ok_if_exists
+    found=netspoc/owner
+    if $EGREP -q "^[^#]*owner:$name[[:space:]]*=" $found; then
+        if [ "$ok_if_exists" != 'null' ] ; then
+
+            # Owner exists already, nothing to do
+            exit 0
+        fi
+    fi
+    filter="bin/create-owner $name $admins"
+    if [ "$watchers" != 'null' ] ; then
+        filter="$filter $watchers"
+    fi
+}
+
 [ $# -eq 1 ] || abort $USAGE
 job=$1
 
@@ -76,6 +110,9 @@ method=$(jq -r '.method' $job)
 case $method in
     'CreateHost')
         CreateHost
+        ;;
+    'CreateOwner')
+        CreateOwner
         ;;
     *)
         abort "Unknown method '$method'"

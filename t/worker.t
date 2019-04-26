@@ -187,6 +187,165 @@ sub test_err {
 my ($title, $in, $job, $out, $other);
 
 ############################################################
+$title = 'Add owner';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+-- owner
+owner:a = {
+ admins = a@example.com;
+}
+owner:c = {
+ admins = c@example.com;
+}
+END
+
+$job = {
+    method => 'CreateOwner',
+    params => {
+        name    => 'B',
+        admins  => [ 'b@example.com', 'bb@example.com' ],
+    }
+};
+
+$out = <<'END';
+Netspoc warnings:
+Warning: Unused owner:B
+Warning: Unused owner:c
+---
+Index: netspoc/owner
+@@ -1,6 +1,13 @@
+ owner:a = {
+  admins = a@example.com;
+ }
++owner:B = {
++ admins =
++	b@example.com,
++	bb@example.com,
++	;
++}
++
+ owner:c = {
+  admins = c@example.com;
+ }
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Added owner exists';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+-- owner
+owner:a = {
+ admins = a@example.com;
+}
+END
+
+$job = {
+    method => 'CreateOwner',
+    params => {
+        name    => 'a',
+        admins  => [ 'a@example.com' ],
+    }
+};
+
+$out = <<'END';
+Netspoc failed:
+Error: Duplicate definition of owner:a in netspoc/owner
+Aborted with 1 error(s)
+---
+Index: netspoc/owner
+@@ -1,3 +1,9 @@
+ owner:a = {
+  admins = a@example.com;
+ }
++owner:a = {
++ admins =
++	a@example.com,
++	;
++}
++
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Added owner exists, ok';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+-- owner
+owner:a = {
+ admins = a@example.com;
+}
+END
+
+$job = {
+    method => 'CreateOwner',
+    params => {
+        name    => 'a',
+        admins  => [ 'a@example.com' ],
+        ok_if_exists => 1,
+    }
+};
+
+$out = <<'END';
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Added owner exists, but not found';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+-- owner
+owner:a
+= {
+ admins = a@example.com;
+}
+END
+
+$job = {
+    method => 'CreateOwner',
+    params => {
+        name    => 'a',
+        admins  => [ 'a@example.com' ],
+        ok_if_exists => 1,
+    }
+};
+
+$out = <<'END';
+Netspoc failed:
+Error: Duplicate definition of owner:a in netspoc/owner
+Aborted with 1 error(s)
+---
+Index: netspoc/owner
+@@ -2,3 +2,9 @@
+ = {
+  admins = a@example.com;
+ }
++owner:a = {
++ admins =
++	a@example.com,
++	;
++}
++
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 $title = 'Add host to known network';
 ############################################################
 
@@ -275,7 +434,17 @@ $job = {
 };
 
 $out = <<'END';
-Error: Duplicate definition of host:name_10_1_1_4
+Netspoc failed:
+Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
+Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
+Aborted with 2 error(s)
+---
+Index: netspoc/topology
+@@ -1,3 +1,4 @@
+ network:a = { ip = 10.1.1.0/24;
+  host:name_10_1_1_4 = { ip = 10.1.1.4; }
++ host:name_10_1_1_4			= { ip = 10.1.1.4; }
+ }
 END
 
 test_err($title, $in, $job, $out);
@@ -301,7 +470,16 @@ $job = {
 };
 
 $out = <<'END';
-Error: Duplicate IP for host:name_10_1_1_4 and host:other_10_1_1_4
+Netspoc failed:
+Error: Duplicate IP address for host:other_10_1_1_4 and host:name_10_1_1_4
+Aborted with 1 error(s)
+---
+Index: netspoc/topology
+@@ -1,3 +1,4 @@
+ network:a = { ip = 10.1.1.0/24;
+  host:other_10_1_1_4 = { ip = 10.1.1.4; }
++ host:name_10_1_1_4			= { ip = 10.1.1.4; }
+ }
 END
 
 test_err($title, $in, $job, $out);
