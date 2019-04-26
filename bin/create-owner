@@ -36,11 +36,6 @@ use open qw(:std :utf8);
 use File::Basename;
 use Pod::Usage;
 
-sub abort {
-    my (@args) = @_;
-    die "Error: ", @args, "\n";
-}
-
 ####################################################################
 # Argument processing
 ####################################################################
