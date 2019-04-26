@@ -34,7 +34,6 @@ use strict;
 use warnings;
 use open qw(:std :utf8);
 use File::Basename;
-use File::Temp;
 use Pod::Usage;
 
 sub abort {
