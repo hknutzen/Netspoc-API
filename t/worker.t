@@ -80,7 +80,7 @@ sub run {
 }
 
 sub test_worker {
-    my ($in, $job, $other) = @_;
+    my ($in, $job, %named) = @_;
 
     # Initialize empty CVS repository.
     my $cvs_root = tempdir(CLEANUP => 1);
@@ -144,7 +144,7 @@ END
     }
 
     # Simulate changes by other user.
-    if ($other) {
+    if (my $other = $named{other}) {
         system 'cvs -Q checkout -d other netspoc';
         prepare_dir('other', $other);
         system 'cvs -Q commit -m other other';
@@ -162,8 +162,8 @@ END
 }
 
 sub test_run {
-    my ($title, $in, $job, $expected, $other) = @_;
-    my($success, $result) = test_worker($in, $job, $other);
+    my ($title, $in, $job, $expected, %named) = @_;
+    my($success, $result) = test_worker($in, $job, %named);
     if (!$success) {
         diag("Unexpected failure:\n$result");
         fail($title);
@@ -173,8 +173,8 @@ sub test_run {
 }
 
 sub test_err {
-    my ($title, $in, $job, $expected, $other) = @_;
-    my ($success, $stderr) = test_worker($in, $job, $other);
+    my ($title, $in, $job, $expected, %named) = @_;
+    my ($success, $stderr) = test_worker($in, $job, %named);
     if ($success) {
         diag('Unexpected success');
         diag($stderr) if $stderr;
@@ -964,7 +964,7 @@ Index: netspoc/topology
  #
 END
 
-test_run($title, $in, $job, $out, $other);
+test_run($title, $in, $job, $out, other => $other);
 
 ############################################################
 $title = 'Add host, merge conflict';
@@ -1000,7 +1000,7 @@ rcsmerge: warning: conflicts during merge
 cvs update: conflicts found in netspoc/topology
 END
 
-test_err($title, $in, $job, $out, $other);
+test_err($title, $in, $job, $out, other => $other);
 
 ############################################################
 done_testing;
