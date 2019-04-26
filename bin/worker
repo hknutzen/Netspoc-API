@@ -16,7 +16,7 @@ USAGE="Usage: $0 FILE"
 set -e
 
 # Work in $HOME where paths are known.
-#cd $HOME
+cd $HOME
 
 # Ignore this files in netspoc directory
 EGREP='egrep --exclude='*~' --exclude='.#*' --exclude-dir=CVS'
@@ -93,7 +93,7 @@ CreateOwner () {
     if $EGREP -q "^[^#]*owner:$name[[:space:]]*=" $found; then
         if [ "$ok_if_exists" != 'null' ] ; then
 
-            # Owner exists already, nothing to do
+            # Owner already exists, nothing to do
             exit 0
         fi
     fi
@@ -102,6 +102,17 @@ CreateOwner () {
         filter="$filter $watchers"
     fi
 }
+
+# Call this script recursively for each sub job
+MultiJob () {
+    local last=$(jq '.jobs | length - 1' $job)
+    for i in $(seq 0 $last) ; do
+        local subjob="$job-$i"
+        jq ".jobs[$i]" $job > $subjob
+        $0 $subjob
+    done
+}
+
 
 [ $# -eq 1 ] || abort $USAGE
 job=$1
@@ -113,6 +124,10 @@ case $method in
         ;;
     'CreateOwner')
         CreateOwner
+        ;;
+    'MultiJob')
+        MultiJob
+        exit 0
         ;;
     *)
         abort "Unknown method '$method'"

@@ -1020,4 +1020,69 @@ END
 test_err($title, $in, $job, $out, other => $other);
 
 ############################################################
+$title = 'Multiple jobs: add host and owner';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+-- owner
+# Add owners below.
+END
+
+$job = {
+    method => 'MultiJob',
+    jobs => [
+        {
+            method => 'CreateOwner',
+            params => {
+                name    => 'a',
+                admins  => [ 'a@example.com' ],
+            }
+        },
+        {
+            method => 'CreateHost',
+            params => {
+                network => 'n1',
+                name    => 'name_10_1_1_4',
+                ip      => '10.1.1.4',
+                owner   => 'a',
+            }
+        }
+        ],
+    params => {
+        changeID => 'CRQ00001234',
+    }
+};
+
+$out = <<'END';
+Index: netspoc/owner
+@@ -1 +1,7 @@
+ # Add owners below.
++owner:a = {
++ admins =
++	a@example.com,
++	;
++}
++
+Index: netspoc/topology
+@@ -1 +1,3 @@
+-network:n1 = { ip = 10.1.1.0/24; }
++network:n1 = { ip = 10.1.1.0/24;
++ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
++}
+---
+revision 1.2
+API: CRQ00001234
+--
+revision 1.1
+Initial revision
+--
+revision 1.1.1.1
+start
+END
+
+test_run($title, $in, $job, $out, cvs_log => 'owner');
+
+############################################################
 done_testing;
