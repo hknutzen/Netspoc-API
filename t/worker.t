@@ -96,29 +96,29 @@ sub test_worker {
     symlink("$API_DIR/bin", 'bin');
 
     # Create initial netspoc files and put them under CVS control.
-    mkdir("import");
-    prepare_dir("import", $in);
+    mkdir('import');
+    prepare_dir('import', $in);
     chdir 'import';
-    system 'cvs -q import -m start netspoc vendor version >/dev/null 2>&1';
+    system 'cvs -Q import -m start netspoc vendor version';
     chdir $home_dir;
-    system "rm -r import";
-    system "cvs -q checkout netspoc >/dev/null";
+    system 'rm -r import';
+    system 'cvs -Q checkout netspoc';
 
     # Create config file .netspoc-approve for newpolicy
-    mkdir("policydb");
-    mkdir("lock");
+    mkdir('policydb');
+    mkdir('lock');
     write_file('.netspoc-approve', <<"END");
 netspocdir = $home_dir/policydb
 lockfiledir = $home_dir/lock
 END
 
     # Create files for Netspoc-Approve and create compile.log file.
-    system "newpolicy.pl >/dev/null 2>&1";
+    system 'newpolicy.pl >/dev/null 2>&1';
 
     write_file('job', encode_json($job));
 
     # Checkout files from CVS, apply changes and run Netspoc.
-    my ($success, $stderr) = run("bin/cvs-worker1 job");
+    my ($success, $stderr) = run('bin/cvs-worker1 job');
 
     if (not $success and (not $stderr or $stderr !~ /^Netspoc/)) {
         return ($success, $stderr);
@@ -134,7 +134,7 @@ END
     #--- netspoc/owner       15 Apr 2019 07:56:13 -0000      1.1468
     #+++ netspoc/owner       15 Apr 2019 13:27:38 -0000
     #@@ -5,7 +5,7 @@
-    my $diff = `cvs -q diff -u netspoc`;
+    my $diff = `cvs -Q diff -u netspoc`;
     $diff =~ s/^={67}\nRCS .*\nretrieving .*\ndiff .*\n--- .*\n\+\+\+ .*\n//mg;
 
     # Combine warnings and diff into one message, separated by "---".
@@ -145,13 +145,13 @@ END
 
     # Simulate changes by other user.
     if ($other) {
-        system "cvs -q checkout -d other netspoc >/dev/null 2>&1";
-        prepare_dir("other", $other);
-        system "cvs -q commit -m other other >/dev/null 2>&1"
+        system 'cvs -Q checkout -d other netspoc';
+        prepare_dir('other', $other);
+        system 'cvs -Q commit -m other other';
     }
 
     # Try to check in changes.
-    ($success, $stderr) = run("bin/cvs-worker2 job");
+    ($success, $stderr) = run('bin/cvs-worker2 job');
 
     if ($success) {
         return ($success, $diff);
@@ -176,7 +176,7 @@ sub test_err {
     my ($title, $in, $job, $expected, $other) = @_;
     my ($success, $stderr) = test_worker($in, $job, $other);
     if ($success) {
-        diag("Unexpected success");
+        diag('Unexpected success');
         diag($stderr) if $stderr;
         fail($title);
         return;
