@@ -139,7 +139,7 @@ END
 
     # Combine warnings and diff into one message, separated by "---".
     if (not $success) {
-        $stderr .= "---\n" . $diff;
+        $stderr .= "---\n$diff";
         return ($success, $stderr);
     }
 
@@ -152,13 +152,13 @@ END
 
     # Try to check in changes.
     ($success, $stderr) = run('bin/cvs-worker2 job');
+    $success or $diff = $stderr;
 
-    if ($success) {
-        return ($success, $diff);
+    if (my $file = $named{cvs_log}) {
+        my $log = `cvs -q log netspoc/$file|egrep -v '^branches:|^date'|egrep -A1 '^revision'`;
+        $diff .= "---\n$log";
     }
-    else {
-        return ($success, $stderr);
-    }
+    return ($success, $diff);
 }
 
 sub test_run {
@@ -294,13 +294,20 @@ $job = {
         name    => 'a',
         admins  => [ 'a@example.com' ],
         ok_if_exists => 1,
+        changeID => 'CRQ00001234',
     }
 };
 
 $out = <<'END';
+---
+revision 1.1
+Initial revision
+--
+revision 1.1.1.1
+start
 END
 
-test_run($title, $in, $job, $out);
+test_run($title, $in, $job, $out, cvs_log => 'owner');
 
 ############################################################
 $title = 'Added owner exists, but not found';
@@ -360,6 +367,7 @@ $job = {
         network => 'a',
         name    => 'name_10_1_1_4',
         ip      => '10.1.1.4',
+        changeID => 'CRQ00001234',
     }
 };
 
@@ -370,9 +378,18 @@ Index: netspoc/topology
 +network:a = { ip = 10.1.1.0/24; # Comment
 + host:name_10_1_1_4			= { ip = 10.1.1.4; }
 +}
+---
+revision 1.2
+API: CRQ00001234
+--
+revision 1.1
+Initial revision
+--
+revision 1.1.1.1
+start
 END
 
-test_run($title, $in, $job, $out);
+test_run($title, $in, $job, $out, cvs_log => 'topology');
 
 ############################################################
 $title = 'Add host, insert sorted';
