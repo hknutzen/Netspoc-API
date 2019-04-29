@@ -116,10 +116,10 @@ AddToGroup () {
 
 # Call this script recursively for each sub job
 MultiJob () {
-    local last=$(jq '.jobs | length - 1' $job)
+    local last=$(jq '.params | .jobs | length - 1' $job)
     for i in $(seq 0 $last) ; do
         local subjob="$job-$i"
-        jq ".jobs[$i]" $job > $subjob
+        jq ".params | .jobs[$i]" $job > $subjob
         $0 $subjob
     done
 }

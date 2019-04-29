@@ -1184,7 +1184,7 @@ END
 test_err($title, $in, $job, $out, other => $other);
 
 ############################################################
-$title = 'Multiple jobs: add host and owner';
+$title = 'MultiJob: add host and owner';
 ############################################################
 
 $in = <<'END';
@@ -1196,25 +1196,25 @@ END
 
 $job = {
     method => 'MultiJob',
-    jobs => [
-        {
-            method => 'CreateOwner',
-            params => {
-                name    => 'a',
-                admins  => [ 'a@example.com' ],
-            }
-        },
-        {
-            method => 'CreateHost',
-            params => {
-                network => 'n1',
-                name    => 'name_10_1_1_4',
-                ip      => '10.1.1.4',
-                owner   => 'a',
-            }
-        }
-        ],
     params => {
+        jobs => [
+            {
+                method => 'CreateOwner',
+                params => {
+                    name    => 'a',
+                    admins  => [ 'a@example.com' ],
+                }
+            },
+            {
+                method => 'CreateHost',
+                params => {
+                    network => 'n1',
+                    name    => 'name_10_1_1_4',
+                    ip      => '10.1.1.4',
+                    owner   => 'a',
+                }
+            }
+        ],
         changeID => 'CRQ00001234',
     }
 };
