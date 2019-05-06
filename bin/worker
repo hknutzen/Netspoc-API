@@ -31,7 +31,7 @@ getParams () {
     local q=''
     for i in $* ; do
 
-        # Convert string "a" to 'a', array ["a", "b"] to 'a b'
+        # Convert string "a" to 'a', array ["a", "b"] to 'a,b'
         case $i in
             @*)
                 i=$(echo $i | sed 's/^@//')
