@@ -1,4 +1,4 @@
 #!/bin/bash
 
-bin/cvs_worker1 $* &&
-bin/cvs_worker2 $*
+bin/cvs-worker1 "$@" &&
+bin/cvs-worker2 "$@"
