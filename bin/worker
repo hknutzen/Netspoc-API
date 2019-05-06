@@ -38,12 +38,14 @@ getParams () {
                 q=".$i | if . then . | join(\",\") else . end"
                 ;;
             *)
-                q=".$i"
+                q=".$i | values"
                 ;;
         esac
-        query="$query $i=\($q)"
+        [ -n "$query" ] && query="$query, "
+        query="$query\"$i=\($q)\""
     done
-    eval "$(jq -r ".params | @sh \"$query\"" $job)"
+
+    eval "$(jq -r ".params | @sh $query" $job)"
 }
 
 # Functions set global variables:
@@ -82,7 +84,7 @@ CreateHost () {
                   ${found[*]}
     fi
     filter="bin/create-host $network $name $ip"
-    if [ "$owner" != 'null' ] ; then
+    if [ -n "$owner" ] ; then
         filter="$filter $owner"
     fi
 }
@@ -91,7 +93,7 @@ CreateOwner () {
     getParams name @admins @watchers ok_if_exists
     found=netspoc/owner
     if $EGREP -q "^[[:space:]]*owner:$name[[:space:]]*=" $found; then
-        if [ "$ok_if_exists" != 'null' ] ; then
+        if [ -n "$ok_if_exists" ] ; then
 
             # Owner already exists, nothing to do
             exit 0

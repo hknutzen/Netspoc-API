@@ -187,6 +187,42 @@ sub test_err {
 my ($title, $in, $job, $out, $other);
 
 ############################################################
+$title = 'Invalid empty job';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+END
+
+$job = {};
+
+$out = <<'END';
+Error: Unknown method 'null'
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Invalid job without params';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+END
+
+$job = {
+    method => 'AddToGroup',
+};
+
+$out = <<'END';
+Error: Can't find 'group:' in netspoc
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 $title = 'Add to multi block group (1)';
 ############################################################
 
