@@ -1,0 +1,130 @@
+#!/bin/bash
+
+# Hostname or IP of remote server, where jobs arrive
+REMOTE=localhost
+# Wait that many seconds before retry after error.
+WAIT_ERR=10
+
+# Append content of file 'err' together with time stamp to file 'log'.
+log () {
+    date >>log
+    cat err >>log
+}
+
+# Log error, if it occurs for first time.
+# If this type of error has already been logged then log nothing,
+# but wait for $WAIT_ERR seconds.
+log-wait () {
+    local STATUS="status/$1"
+    if [ -f $STATUS ] ; then
+        sleep $WAIT_ERR
+    else
+        touch $STATUS
+        log
+    fi
+}
+
+# Reset error status to ok, so this type of error will be logged again.
+status-ok () {
+    local STATUS="status/$1"
+    rm -f $STATUS
+}
+
+# Execute $cmd repeatedly until success.
+# Errors are written to file 'err' and logged once.
+retry () {
+    local cmd=$1
+    local STATUS=$2
+    while true; do
+        $cmd 2>err ||
+            # On failure, log once, wait and try again.
+            { log-wait $STATUS; continue; }
+        status-ok $STATUS
+        break
+    done
+}
+
+# Wait for next job on remote server,
+# move it from "waiting" to "inprogress",
+# copy job to "inprogress" on local server,
+# set global variable INPROGRESS to "inprogress/job-id".
+get-job () {
+    while true; do
+        INPROGRESS=$(ssh $REMOTE <<'EOF' 2>err
+# Execute on remote server.
+# Abort on every error.
+set -e
+JOB=$(ls inprogress | head -n1)
+
+# Found stale job in "inprogress".
+if [ -n "$JOB" ] ; then
+    # Job already has been finished.
+    if [ -f finished/$JOB ] ; then
+        rm inprogress/$JOB
+    else
+        # Process this job again.
+        # Announce found file to STDOUT.
+        echo inprogress/$JOB
+        exit
+    fi
+fi
+
+# Wait for jobs appearing in directory "waiting".
+while true; do
+    # Take oldest job: first element of list
+    JOB=$(ls -rt waiting | head -n1)
+    if [ -n "$JOB" ] ; then
+        # Found job, move from "waiting" to "inprogress".
+        # Announce found file on STDOUT.
+        mv waiting/$JOB inprogress/$JOB
+        echo inprogress/$JOB
+        exit
+    fi
+    # No job found, wait and check again
+    sleep 1
+done
+EOF
+                  ) ||
+            # On failure, log once, wait and try again.
+            { log-wait ssh-get; continue; }
+        status-ok ssh-get
+        break
+    done
+    retry "scp $REMOTE:$INPROGRESS $INPROGRESS" scp-get
+}
+
+# Move result in finished/job-id to remote server: finished/job-id
+move-result () {
+    retry "scp $FINISHED $REMOTE:$FINISHED" scp-put
+    rm $FINISHED
+}
+
+# Remove inprogress/job-id locally and at remote server.
+remove-job () {
+    retry "ssh $REMOTE rm $INPROGRESS" ssh-remove
+    rm $INPROGRESS
+}
+
+mkdir -p inprogress finished status
+while true; do
+
+    # Read job names.
+    # Only one name expected and only process first found job.
+    FINISHED=$(ls finished | head -n1)
+    if [ -z "$FINISHED" ] ; then
+        INPROGRESS=$(ls inprogress | head -n1)
+        if [ -z "$INPROGRESS" ] ; then
+            # Wait for next job, set global variable INPROGRESS.
+            get-job
+        fi
+        JOB=$(basename $INPROGRESS)
+        FINISHED=finished/$JOB
+        # Store errors in $FINISHED.
+        # File is emtpy on success.
+        bin/cvs-worker $INPROGRESS 2>$FINISHED ||
+            grep -q '[^[:space:]]' $FINISHED ||
+            echo "Unknown error" > $FINISHED
+    fi
+    move-result
+    remove-job
+done
