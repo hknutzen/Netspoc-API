@@ -1220,6 +1220,26 @@ END
 test_err($title, $in, $job, $out, other => $other);
 
 ############################################################
+$title = 'MultiJob without jobs';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+-- owner
+# Add owners below.
+END
+
+$job = {
+    method => 'MultiJob',
+};
+
+$out = <<'END';
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
 $title = 'MultiJob: add host and owner';
 ############################################################
 
