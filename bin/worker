@@ -108,7 +108,7 @@ AddToGroup () {
     # Search files containing group definition
     # and collect found filenames into array
     found=($($EGREP -rl "^[[:space:]]*group:$name[[:space:]]*=" netspoc)) ||
-            abort "Can't find 'network:$network' in netspoc"
+            abort "Can't find 'group:$name' in netspoc"
     [ ${#found[*]} -gt 1 ] &&
         abort "Found multiple occurrences of 'group:$name' in:" ${found[*]}
     filter="bin/add-to-group $name $object"
