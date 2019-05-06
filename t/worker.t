@@ -1237,8 +1237,9 @@ $job = {
             {
                 method => 'CreateOwner',
                 params => {
-                    name    => 'a',
-                    admins  => [ 'a@example.com' ],
+                    name     => 'a',
+                    admins   => [ 'a@example.com', 'b@example.com' ],
+                    watchers => [ 'c@example.com', 'd@example.com' ],
                 }
             },
             {
@@ -1257,11 +1258,16 @@ $job = {
 
 $out = <<'END';
 Index: netspoc/owner
-@@ -1 +1,7 @@
+@@ -1 +1,12 @@
  # Add owners below.
 +owner:a = {
 + admins =
 +	a@example.com,
++	b@example.com,
++	;
++ watchers =
++	c@example.com,
++	d@example.com,
 +	;
 +}
 +
