@@ -1,0 +1,74 @@
+#!/usr/bin/env perl
+
+=head1 NAME
+
+add-job - Add job from STDIN to new job file in ~/waiting
+
+=head1 SYNOPSIS
+
+add-job
+
+=head1 COPYRIGHT AND DISCLAIMER
+
+(c) 2019 by Heinz Knutzen <heinz.knutzen@googlemail.com>
+
+http://hknutzen.github.com/Netspoc-API
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+=cut
+
+use strict;
+use warnings;
+use Fcntl qw(:seek :flock);
+use File::Temp qw(tempfile);
+
+chdir($ENV{HOME}) or die "Can't cd to '$ENV{HOME}': $!\n";
+
+# Jobs are stored in directory waiting/ in files 1, 2, 3, ...
+# File name for storing number of last stored job.
+my $counter = 'job-counter';
+my $queue = 'waiting';
+
+# Initialize job number on first run
+-f $counter or system("touch $counter");
+
+# Find number for next job.
+# Read previous job number.
+open(my $fh, '+<', $counter) or die "Can't open $counter: $!\n";
+
+# Lock it for exclusive access
+flock($fh, LOCK_EX) or die "Can't get lock: $!\n";
+
+# Read current value; is empty on first run
+my $count = <$fh> || 0;
+
+# Increment value and write back
+$count++;
+seek($fh, 0, SEEK_SET);
+printf $fh $count;
+
+close $fh;
+
+# Read job description from STDIN, write to temp file, move to queue.
+$/ = undef;
+my $data = <>;
+
+($fh, my $tmpname) = tempfile( DIR => './' );
+print $fh $data;
+close $fh;
+
+my $job = "$queue/$count";
+rename $tmpname, $job or die "Can't mv tempfile to $job: $!";
