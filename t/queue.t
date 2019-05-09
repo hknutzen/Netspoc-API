@@ -90,8 +90,8 @@ sub setup_backend {
     chdir $backend;
 
     # Install versions of ssh and scp that use bash and cp instead.
-    mkdir('my-ssh');
-    write_file("my-ssh/ssh", <<"END");
+    mkdir('my-bin');
+    write_file("my-bin/ssh", <<"END");
 #!/bin/sh
 shift		# ignore name of remote host
 if [ \$# -gt 0 ] ; then
@@ -100,15 +100,15 @@ else
     sh -s -c "cd $frontend"
 fi
 END
-    write_file("my-ssh/scp", <<"END");
+    write_file("my-bin/scp", <<"END");
 #!/bin/sh
 replace () { echo \$1 | sed -E 's,^[^:]+:,$frontend/,'; }
 FROM=\$(replace \$1)
 TO=\$(replace \$2)
 cp \$FROM \$TO
 END
-    system "chmod a+x my-ssh/*";
-    $ENV{PATH} = "$backend/my-ssh:$ENV{PATH}";
+    system "chmod a+x my-bin/*";
+    $ENV{PATH} = "$backend/my-bin:$ENV{PATH}";
 }
 
 sub setup_netspoc {
@@ -200,7 +200,7 @@ sub start_queue {
 # Stop process group, i.e. background job with all its children.
 sub stop_queue {
     my ($pid) = @_;
-    kill 'TERM', -$pid;
+    kill 'TERM', -$pid or BAIL_OUT "Can't kill"
 }
 
 sub check_status {
@@ -209,9 +209,19 @@ sub check_status {
     eq_or_diff($status, $expected, $title);
 }
 
+sub check_log {
+    my ($expected, $title) = @_;
+    my $file = "$backend/log";
+
+    # Ignore line with time stamp
+    my $log = `grep -v '^Date: ' $file`;
+    eq_or_diff($log, $expected, $title);
+    system("rm $file; touch $file");
+}
 
 setup_frontend();
 setup_backend();
+system("touch $backend/log");
 setup_netspoc(<<'END');
 -- topology
 network:a = { ip = 10.1.1.0/24; } # Comment
@@ -232,7 +242,7 @@ my $id2 = add_job($job);
 check_status($id1, 'WAITING', 'Job 1 waiting, no worker');
 check_status($id2, 'WAITING', 'Job 2 waiting, no worker');
 
-start_queue();
+my $pid = start_queue();
 
 my $id3 = add_job({
     method => 'CreateHost',
@@ -258,7 +268,36 @@ Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
 Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
 Aborted with 2 error(s)
 END
-check_status($id3, 'FINISHED', 'Job 3 success');
+
+stop_queue($pid);
+
+check_status($id3, 'FINISHED', 'Job 3 success, no worker');
+
+check_log('', 'Empty log');
+
+# Let "scp" fail
+write_file("$backend/my-bin/scp", <<"END");
+#!/bin/sh
+echo "scp: can't connect" >&2
+exit 1
+END
+
+my $id = add_job($job);
+$pid = start_queue();
+sleep 1;
+stop_queue($pid);
+check_log("scp: can't connect\n", 'scp failed');
+
+# Let "ssh" fail
+write_file("$backend/my-bin/ssh", <<"END");
+#!/bin/sh
+echo "ssh: can't connect" >&2
+exit 1
+END
+$pid = start_queue();
+sleep 1;
+stop_queue($pid);
+check_log("ssh: can't connect\n", 'ssh failed');
 
 ############################################################
 done_testing;
