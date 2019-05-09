@@ -3,20 +3,18 @@
 use strict;
 use warnings;
 use File::Temp qw/ tempdir /;
-use File::Spec::Functions qw/ file_name_is_absolute splitpath catdir catfile /;
-use File::Path 'make_path';
-use IPC::Run3;
 use JSON;
 use Test::More;
 use Test::Differences;
+use lib 't';
+use Test_API qw(write_file prepare_dir run);
 
 # Set up PATH and PERL5LIB, such that files and libraries are searched
-# in $HOME/Netspoc, $HOME/Netspoc-Approve
+# in $HOME/Netspoc.
 my $NETSPOC_DIR = "$ENV{HOME}/Netspoc";
-my $APPROVE_DIR = "$ENV{HOME}/Netspoc-Approve";
-$ENV{PATH} = "$NETSPOC_DIR/bin:$APPROVE_DIR/bin:$ENV{PATH}";
+$ENV{PATH} = "$NETSPOC_DIR/bin:$ENV{PATH}";
 {
-    my $lib = "$NETSPOC_DIR/lib:$APPROVE_DIR/lib";
+    my $lib = "$NETSPOC_DIR/lib";
     if (my $old = $ENV{PERL5LIB}) {
         $lib .= ":$old";
     }
@@ -25,67 +23,8 @@ $ENV{PATH} = "$NETSPOC_DIR/bin:$APPROVE_DIR/bin:$ENV{PATH}";
 
 my $API_DIR = "$ENV{HOME}/Netspoc-API";
 
-sub write_file {
-    my($name, $data) = @_;
-    my $fh;
-    open($fh, '>', $name) or die "Can't open $name: $!\n";
-    print($fh $data) or die "$!\n";
-    close($fh);
-}
-
-sub prepare_dir {
-    my($dir, $input) = @_;
-
-    # Prepare files in input directory.
-    # $input consists of one or more blocks.
-    # Each block is preceeded by a single
-    # starting with one or more of dashes followed by a filename.
-    my $delim  = qr/^-+[ ]*(\S+)[ ]*\n/m;
-    my @input = split($delim, $input);
-    my $first = shift @input;
-
-    # Input does't start with filename.
-    # No further delimiters are allowed.
-    if ($first) {
-        BAIL_OUT("Missing filename before first input block");
-        return;
-    }
-    while (@input) {
-        my $path = shift @input;
-        my $data = shift @input;
-        if (file_name_is_absolute $path) {
-            BAIL_OUT("Unexpected absolute path '$path'");
-            return;
-        }
-        my (undef, $dir_part, $file) = splitpath($path);
-        my $full_dir = catdir($dir, $dir_part);
-        make_path($full_dir);
-        my $full_path = catfile($full_dir, $file);
-        write_file($full_path, $data);
-    }
-}
-
-sub run {
-    my ($cmd) = @_;
-
-    my $stderr;
-    run3($cmd, \undef, undef, \$stderr);
-
-    # Child was stopped by signal.
-    die if $? & 127;
-
-    my $status = $? >> 8;
-    my $success = $status == 0;
-    return($success, $stderr);
-}
-
 sub test_worker {
     my ($in, $job, %named) = @_;
-
-    # Initialize empty CVS repository.
-    my $cvs_root = tempdir(CLEANUP => 1);
-    $ENV{CVSROOT} = $cvs_root;
-    system "cvs init";
 
     # Create working directory, set as home directory and as current directory.
     my $home_dir = tempdir(CLEANUP => 1);
@@ -95,68 +34,40 @@ sub test_worker {
     # Make worker scripts available.
     symlink("$API_DIR/bin", 'bin');
 
-    # Create initial netspoc files and put them under CVS control.
-    mkdir('import');
-    prepare_dir('import', $in);
-    chdir 'import';
-    system 'cvs -Q import -m start netspoc vendor version';
-    chdir $home_dir;
-    system 'rm -r import';
-    system 'cvs -Q checkout netspoc';
+    # Create initial netspoc files.
+    mkdir('netspoc');
+    prepare_dir('netspoc', $in);
 
-    # Create config file .netspoc-approve for newpolicy
-    mkdir('policydb');
-    mkdir('lock');
-    write_file('.netspoc-approve', <<"END");
-netspocdir = $home_dir/policydb
-lockfiledir = $home_dir/lock
-END
-
-    # Create files for Netspoc-Approve and create compile.log file.
-    system 'newpolicy.pl >/dev/null 2>&1';
+    # Make copy for later diff.
+    system "cp -r netspoc unchanged";
 
     write_file('job', encode_json($job));
 
-    # Checkout files from CVS, apply changes and run Netspoc.
-    my ($success, $stderr) = run('bin/cvs-worker1 job');
-
-    if (not $success and (not $stderr or $stderr !~ /^Netspoc/)) {
+    # Apply changes.
+    my ($success, $stderr) = run('bin/worker job');
+    if (not $success) {
         return ($success, $stderr);
     }
 
-    # Collect and simplify diff before check in.
+    # Run Netspoc.
+    ($success, $stderr) = run('netspoc -q netspoc code');
+
+    # Handle warnings as errors.
+    $success = 0 if $stderr;
+
+    # Collect and simplify diff.
     # Show diff even if Netspoc failed.
-    #Index: netspoc/owner
-    #===================================================================
-    #RCS file: /home/diamonds/cvsroot/netspoc/owner,v
-    #retrieving revision 1.1468
-    #diff -u -u -r1.1468 owner
-    #--- netspoc/owner       15 Apr 2019 07:56:13 -0000      1.1468
+    #--- unchanged/owner       15 Apr 2019 07:56:13 -0000
     #+++ netspoc/owner       15 Apr 2019 13:27:38 -0000
     #@@ -5,7 +5,7 @@
-    my $diff = `cvs -Q diff -u netspoc`;
-    $diff =~ s/^={67}\nRCS .*\nretrieving .*\ndiff .*\n--- .*\n\+\+\+ .*\n//mg;
+    my $diff = `diff -u -r unchanged netspoc`;
+    $diff =~ s/^diff -u -r unchanged\/[^ ]* //mg;
+    $diff =~ s/--- .*\n\+\+\+ .*\n//mg;
 
-    # Combine warnings and diff into one message, separated by "---".
-    if (not $success) {
-        $stderr .= "---\n$diff";
-        return ($success, $stderr);
-    }
-
-    # Simulate changes by other user.
-    if (my $other = $named{other}) {
-        system 'cvs -Q checkout -d other netspoc';
-        prepare_dir('other', $other);
-        system 'cvs -Q commit -m other other';
-    }
-
-    # Try to check in changes.
-    ($success, $stderr) = run('bin/cvs-worker2 job');
-    $success or $diff = $stderr;
-
-    if (my $file = $named{cvs_log}) {
-        my $log = `cvs -q log netspoc/$file|egrep -v '^branches:|^date'|egrep -A1 '^revision'`;
-        $diff .= "---\n$log";
+    # Combine messages from Netspoc and diff into one message,
+    # separated by "---".
+    if ($stderr) {
+        $diff = "$stderr---\n$diff";
     }
     return ($success, $diff);
 }
@@ -184,7 +95,7 @@ sub test_err {
     eq_or_diff($stderr, $expected, $title);
 }
 
-my ($title, $in, $job, $out, $other);
+my ($title, $in, $job, $out);
 
 ############################################################
 $title = 'Invalid empty job';
@@ -275,7 +186,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/group
+netspoc/group
 @@ -3,5 +3,6 @@
   host:h_10_1_1_44,
   network:n3,
@@ -300,7 +211,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/group
+netspoc/group
 @@ -2,6 +2,7 @@
   host:h_10_1_1_4,
   host:h_10_1_1_44,
@@ -326,7 +237,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/group
+netspoc/group
 @@ -1,5 +1,6 @@
  group:g1 =
   host:h_10_1_1_4,
@@ -378,7 +289,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/group
+netspoc/group
 @@ -1,5 +1,6 @@
  group:g1 =
   interface:r1.n1,
@@ -424,7 +335,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/group
+netspoc/group
 @@ -1 +1,3 @@
 -group:g1 = ;
 +group:g1 =
@@ -456,11 +367,10 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc failed:
 Error: Duplicate definition of owner:a in netspoc/owner
 Aborted with 1 error(s)
 ---
-Index: netspoc/owner
+netspoc/owner
 @@ -1,3 +1,9 @@
  owner:a = {
   admins = a@example.com;
@@ -499,15 +409,9 @@ $job = {
 };
 
 $out = <<'END';
----
-revision 1.1
-Initial revision
---
-revision 1.1.1.1
-start
 END
 
-test_run($title, $in, $job, $out, cvs_log => 'owner');
+test_run($title, $in, $job, $out);
 
 ############################################################
 $title = 'Added owner exists, but not found';
@@ -533,11 +437,10 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc failed:
 Error: Duplicate definition of owner:a in netspoc/owner
 Aborted with 1 error(s)
 ---
-Index: netspoc/owner
+netspoc/owner
 @@ -2,3 +2,9 @@
  = {
   admins = a@example.com;
@@ -572,24 +475,15 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/topology
+netspoc/topology
 @@ -1 +1,3 @@
 -network:a = { ip = 10.1.1.0/24; } # Comment
 +network:a = { ip = 10.1.1.0/24; # Comment
 + host:name_10_1_1_4			= { ip = 10.1.1.4; }
 +}
----
-revision 1.2
-API: CRQ00001234
---
-revision 1.1
-Initial revision
---
-revision 1.1.1.1
-start
 END
 
-test_run($title, $in, $job, $out, cvs_log => 'topology');
+test_run($title, $in, $job, $out);
 
 ############################################################
 $title = 'Add host, insert sorted';
@@ -617,7 +511,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/topology
+netspoc/topology
 @@ -1,6 +1,7 @@
  network:a = { ip = 10.1.1.0/24;
   # Comment1
@@ -651,12 +545,11 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc failed:
 Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
 Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
 Aborted with 2 error(s)
 ---
-Index: netspoc/topology
+netspoc/topology
 @@ -1,3 +1,4 @@
  network:a = { ip = 10.1.1.0/24;
   host:name_10_1_1_4 = { ip = 10.1.1.4; }
@@ -687,11 +580,10 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc failed:
 Error: Duplicate IP address for host:other_10_1_1_4 and host:name_10_1_1_4
 Aborted with 1 error(s)
 ---
-Index: netspoc/topology
+netspoc/topology
 @@ -1,3 +1,4 @@
  network:a = { ip = 10.1.1.0/24;
   host:other_10_1_1_4 = { ip = 10.1.1.4; }
@@ -723,12 +615,11 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc failed:
 Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
 Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
 Aborted with 2 error(s)
 ---
-Index: netspoc/topology
+netspoc/topology
 @@ -1,4 +1,5 @@
  network:a = { ip = 10.1.1.0/24;
 + host:name_10_1_1_4			= { ip = 10.1.1.4; }
@@ -762,11 +653,10 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc failed:
 Error: IP of host:name_10_1_1_4 doesn't match IP/mask of network:b
 Aborted with 1 error(s)
 ---
-Index: netspoc/topology
+netspoc/topology
 @@ -1,4 +1,6 @@
 -network:a = { ip = 10.1.1.0/24; } network:b = { ip = 10.1.2.0/24; } # Comment
 +network:a = { ip = 10.1.1.0/24; } network:b = { ip = 10.1.2.0/24; # Comment
@@ -800,7 +690,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/topology
+netspoc/topology
 @@ -1,2 +1,4 @@
  owner:DA_abc = { admins = abc@example.com; }
 -network:a = { ip = 10.1.0.0/21; }
@@ -832,11 +722,10 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc warnings:
 Warning: Useless owner:DA_abc at host:name_10_1_1_4,
  it was already inherited from network:a
 ---
-Index: netspoc/topology
+netspoc/topology
 @@ -1,2 +1,4 @@
  owner:DA_abc = { admins = abc@example.com; }
 -network:a = { ip = 10.1.0.0/21; owner = DA_abc; }
@@ -869,7 +758,10 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/topology
+Warning: Useless owner:DA_abc at host:name_10_1_1_4,
+ it was already inherited from network:a
+---
+netspoc/topology
 @@ -1,4 +1,5 @@
  owner:DA_abc = { admins = abc@example.com; }
  network:a = { ip = 10.1.0.0/21; owner = DA_abc;
@@ -878,7 +770,7 @@ Index: netspoc/topology
  }
 END
 
-test_run($title, $in, $job, $out);
+test_err($title, $in, $job, $out);
 
 ############################################################
 $title = 'Add host, with old and new warning';
@@ -903,13 +795,12 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc warnings:
 Warning: Useless owner:DA_abc at host:name_10_1_1_3,
  it was already inherited from network:a
 Warning: Useless owner:DA_abc at host:name_10_1_1_4,
  it was already inherited from network:a
 ---
-Index: netspoc/topology
+netspoc/topology
 @@ -1,4 +1,5 @@
  owner:DA_abc = { admins = abc@example.com; }
  network:a = { ip = 10.1.0.0/21; owner = DA_abc;
@@ -940,11 +831,10 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc failed:
 Error: Can't resolve reference to 'DA_abc' in attribute 'owner' of host:name_10_1_1_4
 Aborted with 1 error(s)
 ---
-Index: netspoc/topology
+netspoc/topology
 @@ -1 +1,3 @@
 -network:a = { ip = 10.1.0.0/21; }
 +network:a = { ip = 10.1.0.0/21;
@@ -981,7 +871,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/topology
+netspoc/topology
 @@ -5,4 +5,5 @@
  #network:b
   ip = 10.1.0.0/21;
@@ -1145,81 +1035,6 @@ END
 test_err($title, $in, $job, $out);
 
 ############################################################
-$title = 'Add host, need cvs update';
-############################################################
-
-$in = <<'END';
--- topology
-network:a = { ip = 10.1.0.0/21; }
-#
-END
-
-$other = <<'END';
--- topology
-network:a = { ip = 10.1.0.0/21; }
-#
-network:b = { ip = 10.8.0.0/21; }
-END
-
-$job = {
-    method => 'CreateHost',
-    params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
-    }
-};
-
-$out = <<'END';
-Index: netspoc/topology
-@@ -1,2 +1,4 @@
--network:a = { ip = 10.1.0.0/21; }
-+network:a = { ip = 10.1.0.0/21;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
-+}
- #
-END
-
-test_run($title, $in, $job, $out, other => $other);
-
-############################################################
-$title = 'Add host, merge conflict';
-############################################################
-
-$in = <<'END';
--- topology
-network:a = {
- ip = 10.1.0.0/21;
-}
-END
-
-$other = <<'END';
--- topology
-network:a = { ip = 10.1.0.0/21;
- host:name_10_1_1_5			= { ip = 10.1.1.5; }
-}
-END
-
-$job = {
-    method => 'CreateHost',
-    params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
-    }
-};
-
-$out = <<'END';
-Merge conflict during cvs update:
-rcsmerge: warning: conflicts during merge
-cvs update: conflicts found in netspoc/topology
-END
-
-test_err($title, $in, $job, $out, other => $other);
-
-############################################################
 $title = 'MultiJob without jobs';
 ############################################################
 
@@ -1277,7 +1092,7 @@ $job = {
 };
 
 $out = <<'END';
-Index: netspoc/owner
+netspoc/owner
 @@ -1 +1,12 @@
  # Add owners below.
 +owner:a = {
@@ -1291,24 +1106,15 @@ Index: netspoc/owner
 +	;
 +}
 +
-Index: netspoc/topology
+netspoc/topology
 @@ -1 +1,3 @@
 -network:n1 = { ip = 10.1.1.0/24; }
 +network:n1 = { ip = 10.1.1.0/24;
 + host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
 +}
----
-revision 1.2
-API: CRQ00001234
---
-revision 1.1
-Initial revision
---
-revision 1.1.1.1
-start
 END
 
-test_run($title, $in, $job, $out, cvs_log => 'owner');
+test_run($title, $in, $job, $out);
 
 ############################################################
 done_testing;
