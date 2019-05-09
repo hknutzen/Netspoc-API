@@ -7,6 +7,7 @@ WAIT_ERR=10
 
 # Append content of file 'err' together with time stamp to file 'log'.
 log () {
+    echo -n 'Date: ' >>log
     date >>log
     cat err >>log
 }
