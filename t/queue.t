@@ -25,6 +25,8 @@ $ENV{PATH} = "$NETSPOC_DIR/bin:$APPROVE_DIR/bin:$ENV{PATH}";
 
 my $API_DIR = "$ENV{HOME}/Netspoc-API";
 
+my ($frontend, $backend);
+
 sub write_file {
     my($name, $data) = @_;
     my $fh;
@@ -65,41 +67,27 @@ sub prepare_dir {
     }
 }
 
-sub run {
-    my ($cmd) = @_;
-
-    my $stderr;
-    run3($cmd, \undef, undef, \$stderr);
-
-    # Child was stopped by signal.
-    die if $? & 127;
-
-    my $status = $? >> 8;
-    my $success = $status == 0;
-    return($success, $stderr);
-}
-
-# Prepare directory for frontend, return name of directory.
+# Prepare directory for frontend, store name in global variable $frontend.
 sub setup_frontend {
 
     # Create working directory.
-    my $home_dir = tempdir(CLEANUP => 1);
+    $frontend = tempdir(CLEANUP => 1);
 
     # Create directories for queues.
-    system "mkdir -p $home_dir/$_" for qw(waiting inprogress finished);
+    system "mkdir -p $frontend/$_" for qw(waiting inprogress finished);
 
-    return ($home_dir);
+    # Make worker scripts available.
+    symlink("$API_DIR/bin", 'bin');
 }
 
 # Prepare directory for backend, prepare fake versions of ssh and scp.
-# Return name of directory.
+# Return name of directory in global variable $backend.
 sub setup_backend {
-    my ($frontend_dir) = @_;
 
     # Create working directory, set as home directory and as current directory.
-    my $home_dir = tempdir(CLEANUP => 1);
-    $ENV{HOME} = $home_dir;
-    chdir $home_dir;
+    $backend = tempdir(CLEANUP => 1);
+    $ENV{HOME} = $backend;
+    chdir $backend;
 
     # Install versions of ssh and scp that use bash and cp instead.
     mkdir('my-ssh');
@@ -107,26 +95,24 @@ sub setup_backend {
 #!/bin/sh
 shift		# ignore name of remote host
 if [ \$# -gt 0 ] ; then
-    sh -c "cd $frontend_dir; \$*"
+    sh -c "cd $frontend; \$*"
 else
-    sh -s -c "cd $frontend_dir"
+    sh -s -c "cd $frontend"
 fi
 END
     write_file("my-ssh/scp", <<"END");
 #!/bin/sh
-replace () { echo \$1 | sed -E 's,^[^:]+:,$frontend_dir/,'; }
+replace () { echo \$1 | sed -E 's,^[^:]+:,$frontend/,'; }
 FROM=\$(replace \$1)
 TO=\$(replace \$2)
 cp \$FROM \$TO
 END
     system "chmod a+x my-ssh/*";
-    $ENV{PATH} = "$home_dir/my-ssh:$ENV{PATH}";
-
-    return $home_dir;
+    $ENV{PATH} = "$backend/my-ssh:$ENV{PATH}";
 }
 
 sub setup_netspoc {
-    my ($in, $home_dir) = @_;
+    my ($in) = @_;
 
     # Initialize empty CVS repository.
     my $cvs_root = tempdir(CLEANUP => 1);
@@ -141,7 +127,7 @@ sub setup_netspoc {
     prepare_dir('import', $in);
     chdir 'import';
     system 'cvs -Q import -m start netspoc vendor version';
-    chdir $home_dir;
+    chdir $backend;
     system 'rm -r import';
     system 'cvs -Q checkout netspoc';
 
@@ -149,102 +135,130 @@ sub setup_netspoc {
     mkdir('policydb');
     mkdir('lock');
     write_file('.netspoc-approve', <<"END");
-netspocdir = $home_dir/policydb
-lockfiledir = $home_dir/lock
+netspocdir = $backend/policydb
+lockfiledir = $backend/lock
 END
 
     # Create files for Netspoc-Approve and create compile.log file.
     system 'newpolicy.pl >/dev/null 2>&1';
 }
 
-sub test_job {
-    my ($in, $job) = @_;
+sub add_job {
+    my ($job) = @_;
+    local $ENV{HOME} = $frontend;
 
-    my ($frontend, $ssh_fd) = setup_frontend();
-    my ($backend) = setup_backend($frontend);
-    setup_netspoc($in, $backend);
+    my $stdin = encode_json($job);
+    my $stderr;
+    my $stdout;
+    run3('bin/add-job', \$stdin, \$stdout, \$stderr);
 
-    # Put job into queue
-    write_file("$frontend/waiting/1", encode_json($job));
+    # Child was stopped by signal.
+    die if $? & 127;
 
-    # Process queue in background with new process group.
+    my $status = $? >> 8;
+    $status == 0 or BAIL_OUT "Unexpected error with job $job";
+    return $stdout;
+}
+
+# Get job status in text form:
+# First line:     STATUS
+# Optional lines: error message
+sub job_status {
+    my ($id) = @_;
+    local $ENV{HOME} = $frontend;
+    my $json = `bin/job-status $id`;
+    my $hash = decode_json $json;
+    my $result = $hash->{status};
+    if (my $msg = $hash->{message}) {
+        $result .= "\n$msg";
+    }
+    return $result;
+}
+
+# Wait for results of background job.
+sub wait_job {
+    my ($id) = @_;
+    my $path = "$frontend/finished/$id";
+    while (1) {
+        last if -f $path;
+        sleep 1;
+    }
+}
+
+# Process queue in background with new process group.
+sub start_queue {
     my $pid = fork();
     if (0 == $pid) {
         setpgrp(0, 0);
-        exec"bin/process-queue";
+        exec "bin/process-queue";
         die "exec failed: $!\n";
     }
+    $pid or die "fork failed: $!\n";
+    return $pid;
+}
 
-    # Wait for results of background job.
-    my $path = "$frontend/finished/1";
-    while (1) {
-        sleep 1;
-        last if -f $path;
-    }
-
-    # Stop process group, i.e. background job with all its children.
+# Stop process group, i.e. background job with all its children.
+sub stop_queue {
+    my ($pid) = @_;
     kill 'TERM', -$pid;
-
-    my $finished = `cat $path`;
-    return ($finished);
 }
 
-sub test_run {
-    my ($title, $in, $job, $expected, %named) = @_;
-    my($result) = test_job($in, $job, %named);
-    eq_or_diff($result, $expected, $title);
+sub check_status {
+    my ($id, $expected, $title) = @_;
+    my $status = job_status($id);
+    eq_or_diff($status, $expected, $title);
 }
 
-my ($title, $in, $job, $out, $other);
 
-############################################################
-$title = 'Add host to known network';
-############################################################
-
-$in = <<'END';
+setup_frontend();
+setup_backend();
+setup_netspoc(<<'END');
 -- topology
 network:a = { ip = 10.1.1.0/24; } # Comment
 END
 
-$job = {
+my $job = {
     method => 'CreateHost',
     params => {
         network => 'a',
         name    => 'name_10_1_1_4',
         ip      => '10.1.1.4',
         changeID => 'CRQ00001234',
-    }
-};
+    }};
 
-$out = <<'END';
-END
+my $id1 = add_job($job);
+my $id2 = add_job($job);
 
-test_run($title, $in, $job, $out);
+check_status($id1, 'WAITING', 'Job 1 waiting, no worker');
+check_status($id2, 'WAITING', 'Job 2 waiting, no worker');
 
-############################################################
-$title = 'Add host to unknown network';
-############################################################
+start_queue();
 
-$in = <<'END';
--- topology
-network:a = { ip = 10.1.1.0/24; } # Comment
-END
-
-$job = {
+my $id3 = add_job({
     method => 'CreateHost',
     params => {
-        network => 'unknown',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        changeID => 'CRQ00001234',
-    }
-};
+        network => 'a',
+        name    => 'name_10_1_1_5',
+        ip      => '10.1.1.5',
+        changeID => 'CRQ000012345',
+    }});
 
-$out = <<'END';
-Error: Can't find 'network:unknown' in netspoc
+check_status($id1, 'INPROGRESS', 'Job 1 in progress');
+check_status($id2, 'WAITING', 'Job 2 still waiting');
+check_status($id3, 'WAITING', 'New job 3 waiting');
+check_status(99, 'UNKNOWN', 'Unknown job 99');
+
+wait_job($id3);
+
+check_status($id1, 'FINISHED', 'Job 1 success');
+check_status($id2, <<'END', 'Job 2 with errors');
+ERROR
+Netspoc failed:
+Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
+Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
+Aborted with 2 error(s)
 END
-
-test_run($title, $in, $job, $out);
+check_status($id3, 'FINISHED', 'Job 3 success');
 
 ############################################################
 done_testing;
