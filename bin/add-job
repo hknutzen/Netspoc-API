@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-add-job - Add job from STDIN to new job file in ~/waiting
+add-job - Add job from STDIN to queue, print ID of job to STDOUT
 
 =head1 SYNOPSIS
 
@@ -43,7 +43,9 @@ my $counter = 'job-counter';
 my $queue = 'waiting';
 
 # Initialize job number on first run
--f $counter or system("touch $counter");
+-f $counter or
+    system("touch $counter") == 0 or
+    die "Can't create $counter: $!\n";
 
 # Find number for next job.
 # Read previous job number.
@@ -72,3 +74,6 @@ close $fh;
 
 my $job = "$queue/$count";
 rename $tmpname, $job or die "Can't mv tempfile to $job: $!";
+
+# Print ID of new job to STDOUT.
+print $count;
