@@ -190,7 +190,7 @@ sub start_queue {
     my $pid = fork();
     if (0 == $pid) {
         setpgrp(0, 0);
-        exec "bin/process-queue";
+        exec "bin/process-queue localhost bin/cvs-worker";
         die "exec failed: $!\n";
     }
     $pid or die "fork failed: $!\n";
@@ -285,8 +285,8 @@ END
 my $id = add_job($job);
 $pid = start_queue();
 sleep 1;
-stop_queue($pid);
 check_log("scp: can't connect\n", 'scp failed');
+stop_queue($pid);
 
 # Let "ssh" fail
 write_file("$backend/my-bin/ssh", <<"END");

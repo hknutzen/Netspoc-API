@@ -1,7 +1,20 @@
 #!/bin/bash
 
-# Hostname or IP of remote server, where jobs arrive
-REMOTE=localhost
+usage () {
+    echo "$0 [user@]remote worker-command" >&2
+    exit 1
+}
+
+[ $# -eq 2 ] || usage
+
+# Username and hostname or IP of remote server, where jobs arrive.
+# Used by ssh and scp.
+REMOTE=$1
+
+# Program that processes jobs, one by one.
+# Path to job is given as argument, errors are written to STDERR.
+WORKER=$2
+
 # Wait that many seconds before retry after error.
 WAIT_ERR=10
 
@@ -122,7 +135,7 @@ while true; do
         FINISHED=finished/$JOB
         # Store errors in $FINISHED.
         # File is emtpy on success.
-        bin/cvs-worker $INPROGRESS 2>$FINISHED ||
+        $WORKER $INPROGRESS 2>$FINISHED ||
             grep -q '[^[:space:]]' $FINISHED ||
             echo "Unknown error" > $FINISHED
     fi
