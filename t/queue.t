@@ -38,19 +38,19 @@ sub setup_frontend {
     system "mkdir -p $frontend/$_" for qw(waiting inprogress finished);
 
     # Make worker scripts available.
-    symlink("$API_DIR/bin", 'bin');
+    symlink("$API_DIR/bin", "$frontend/bin");
 }
 
 # Prepare directory for backend, prepare fake versions of ssh and scp.
-# Return name of directory in global variable $backend.
+# Store name of directory in global variable $backend.
 sub setup_backend {
 
     # Create working directory, set as home directory and as current directory.
     $backend = tempdir(CLEANUP => 1);
     $ENV{HOME} = $backend;
-    chdir $backend;
+    chdir;
 
-    # Install versions of ssh and scp that use bash and cp instead.
+    # Install versions of ssh and scp that use sh and cp instead.
     mkdir('my-bin');
     write_file("my-bin/ssh", <<"END");
 #!/bin/sh
@@ -78,6 +78,7 @@ END
 sub add_job {
     my ($job) = @_;
     local $ENV{HOME} = $frontend;
+    chdir;
 
     my $stdin = encode_json($job);
     my $stderr;
@@ -98,6 +99,8 @@ sub add_job {
 sub job_status {
     my ($id) = @_;
     local $ENV{HOME} = $frontend;
+    chdir;
+
     my $json = `bin/job-status $id`;
     my $hash = decode_json $json;
     my $result = $hash->{status};
@@ -122,6 +125,7 @@ sub start_queue {
     my $pid = fork();
     if (0 == $pid) {
         setpgrp(0, 0);
+        chdir;
         exec "bin/process-queue localhost bin/cvs-worker";
         die "exec failed: $!\n";
     }
