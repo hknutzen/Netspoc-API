@@ -5,6 +5,7 @@ use warnings;
 use File::Temp qw/ tempdir /;
 use IPC::Run3;
 use JSON;
+use Plack::Test;
 use Test::More;
 use Test::Differences;
 use lib 't';
@@ -110,6 +111,58 @@ sub job_status {
     return $result;
 }
 
+## Setup WWW server for testing.
+my $server;
+
+sub setup_www {
+    my $conf_data = {
+        user => 'test',
+        pass => 'test',
+    };
+    write_file("$frontend/config", encode_json($conf_data));
+    local $ENV{HOME} = $frontend;
+    chdir;
+    my $app;
+
+    # Load psgi file into separate namespace to avoid name conflicts.
+    package WWW {
+        $app = do './bin/api.psgi' or die "Couldn't parse PSGI file: $@";
+    }
+    #$Plack::Test::Impl = 'Server';
+    $server = Plack::Test->create($app);
+}
+
+sub www_add_job {
+    my ($job) = @_;
+    local $ENV{HOME} = $frontend;
+    chdir;
+    my $req = HTTP::Request->new(
+        'POST' => '/add-job',
+        ['Content-Type' => 'application/json'],
+        encode_json($job));
+    my $res = $server->request($req);
+    $res->is_success or BAIL_OUT $res->content;
+    return decode_json($res->content)->{id};
+}
+
+sub www_job_status {
+    my ($input) = @_;
+    local $ENV{HOME} = $frontend;
+    chdir;
+    my $req = HTTP::Request->new(
+        'POST' => '/job-status',
+        ['Content-Type' => 'application/json'],
+        encode_json($input));
+    my $res = $server->request($req);
+    $res->is_success or BAIL_OUT $res->content;
+    my $json = decode_json($res->content);
+    my ($result, $msg) = @{$json}{qw(status message)};
+    if ($msg) {
+        $result .= "\n$msg";
+    }
+    return $result;
+}
+
 # Wait for results of background job.
 sub wait_job {
     my ($id) = @_;
@@ -145,6 +198,12 @@ sub check_status {
     eq_or_diff($status, $expected, $title);
 }
 
+sub www_check_status {
+    my ($input, $expected, $title) = @_;
+    my $status = www_job_status($input);
+    eq_or_diff($status, $expected, $title);
+}
+
 sub check_log {
     my ($expected, $title) = @_;
     my $file = "$backend/log";
@@ -156,6 +215,7 @@ sub check_log {
 }
 
 setup_frontend();
+setup_www();
 setup_backend();
 system("touch $backend/log");
 setup_netspoc($backend, <<'END');
@@ -170,10 +230,13 @@ my $job = {
         name    => 'name_10_1_1_4',
         ip      => '10.1.1.4',
         changeID => 'CRQ00001234',
-    }};
+    },
+    user => 'test',
+    pass => 'test',
+};
 
 my $id1 = add_job($job);
-my $id2 = add_job($job);
+my $id2 = www_add_job($job);
 
 check_status($id1, 'WAITING', 'Job 1 waiting, no worker');
 check_status($id2, 'WAITING', 'Job 2 waiting, no worker');
@@ -197,7 +260,9 @@ check_status(99, 'UNKNOWN', 'Unknown job 99');
 wait_job($id3);
 
 check_status($id1, 'FINISHED', 'Job 1 success');
-check_status($id2, <<'END', 'Job 2 with errors');
+www_check_status(
+    { id => $id2, user => 'test', pass => 'test' },
+    <<'END', 'WWW job 2 with errors');
 ERROR
 Netspoc failed:
 Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
@@ -207,7 +272,9 @@ END
 
 stop_queue($pid);
 
-check_status($id3, 'FINISHED', 'Job 3 success, no worker');
+www_check_status(
+    { id => $id3, user => 'test', pass => 'test' },
+    'FINISHED', 'Job 3 success, no worker');
 
 check_log('', 'Empty log');
 
