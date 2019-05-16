@@ -36,7 +36,7 @@ sub setup_frontend {
     $frontend = tempdir(CLEANUP => 1);
 
     # Create directories for queues.
-    system "mkdir -p $frontend/$_" for qw(waiting inprogress finished);
+    system "mkdir -p $frontend/$_" for qw(waiting inprogress finished result);
 
     # Make worker scripts available.
     symlink("$API_DIR/bin", "$frontend/bin");
@@ -231,11 +231,11 @@ my $job = {
         ip      => '10.1.1.4',
         crq     => 'CRQ00001234',
     },
-    user => 'test',
-    pass => 'test',
 };
 
 my $id1 = add_job($job);
+
+@{$job}{qw(user pass)} = qw(test test);
 my $id2 = www_add_job($job);
 
 check_status($id1, 'WAITING', 'Job 1 waiting, no worker');
@@ -250,7 +250,10 @@ my $id3 = add_job({
         name    => 'name_10_1_1_5',
         ip      => '10.1.1.5',
         crq     => 'CRQ000012345',
-    }});
+    },
+    user => 'test',
+    pass => 'test',
+    });
 
 check_status($id1, 'INPROGRESS', 'Job 1 in progress');
 check_status($id2, 'WAITING', 'Job 2 still waiting');

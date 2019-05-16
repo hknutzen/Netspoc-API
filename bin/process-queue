@@ -107,40 +107,42 @@ EOF
     retry "scp $REMOTE:$INPROGRESS $INPROGRESS" scp-get
 }
 
-# Move result in finished/job-id to remote server: finished/job-id
-move-result () {
-    retry "scp $FINISHED $REMOTE:$FINISHED" scp-put
-    rm $FINISHED
+# Move result/job-id to remote server: result/job-id
+# Remove inprogress/job-id locally and move to finished/ at remote server.
+mark-finished () {
+    local JOB=$1
+    local RESULT=result/$JOB
+    local INPROGRESS=inprogress/$JOB
+    local FINISHED=finished/$JOB
+    retry "scp $RESULT $REMOTE:$RESULT" scp-put
+    retry "ssh $REMOTE mv $INPROGRESS $FINISHED" ssh-move
+    rm $RESULT
+    rm -f $INPROGRESS
 }
 
-# Remove inprogress/job-id locally and at remote server.
-remove-job () {
-    retry "ssh $REMOTE rm $INPROGRESS" ssh-remove
-    rm $INPROGRESS
-}
-
-mkdir -p inprogress finished status
+mkdir -p inprogress result status
 while true; do
 
     # Read job names.
     # Only one name expected and only process first found job.
-    FINISHED=$(ls finished | head -n1)
-    if [ -z "$FINISHED" ] ; then
+    RESULT=$(ls result | head -n1)
+    if [ -z "$RESULT" ] ; then
         INPROGRESS=$(ls inprogress | head -n1)
         if [ -z "$INPROGRESS" ] ; then
             # Wait for next job, set global variable INPROGRESS.
             get-job
         fi
         JOB=$(basename $INPROGRESS)
-        FINISHED=finished/$JOB
+        RESULT=result/$JOB
         TMP=$(mktemp -p .)
-        # Store errors in $FINISHED.
+        # Store errors in $RESULT.
         # File is emtpy on success.
         $WORKER $INPROGRESS 2>$TMP ||
             grep -q '[^[:space:]]' $TMP ||
             echo "Unknown error" > $TMP
-        mv $TMP $FINISHED
+        mv $TMP $RESULT
+    else
+        JOB=$(basename $INPROGRESS)
     fi
-    move-result
-    remove-job
+    mark-finished $JOB
 done

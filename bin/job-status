@@ -51,6 +51,7 @@ sub read_file {
 # - WAITING
 # - INPROGRESS
 # - FINISHED
+# - DENIED
 # - UNKNOWN
 # or
 # - ERROR
@@ -58,24 +59,34 @@ sub read_file {
 
 chdir $ENV{HOME};
 my $job = shift;
+my $user = shift || '';
 
 my ($status, $message);
 
-my $err_file = "finished/$job";
+my $err_file = "result/$job";
+my $fin_job = "finished/$job";
+
 if (-f "waiting/$job") {
     $status = 'WAITING';
 }
 elsif (-f "inprogress/$job") {
     $status = "INPROGRESS";
 }
-elsif (-f $err_file) {
-    $message = read_file($err_file);
-    unlink $err_file;
-    if ($message) {
-        $status = 'ERROR';
+elsif (-f $fin_job) {
+    my $json = read_file($fin_job);
+    my $job_user = decode_json($json)->{user} || '';
+    if ($user ne $job_user) {
+        $status = 'DENIED';
     }
     else {
-        $status = 'FINISHED';
+        $message = read_file($err_file);
+        unlink $err_file, $fin_job;
+        if ($message) {
+            $status = 'ERROR';
+        }
+        else {
+            $status = 'FINISHED';
+        }
     }
 }
 else {
