@@ -1117,4 +1117,26 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'Job with malicous network name';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.1.1.0/24; } # Comment
+END
+
+$job = {
+    method => 'CreateHost',
+    params => {
+        network => "a'; exit; '",
+    }
+};
+
+$out = <<'END';
+Error: Can't find 'network:a'; exit; '' in netspoc
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 done_testing;
