@@ -12,7 +12,7 @@ abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 
 # Try to check in.
 while true; do
-    if cvs -Q commit -m"$MSG" netspoc 2>err; then
+    if cvs -q commit -m"$MSG" netspoc >/dev/null 2>err; then
         break;
     fi
     # Try again if Up-to-date check failed
