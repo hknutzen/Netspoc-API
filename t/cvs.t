@@ -122,7 +122,7 @@ network:a = { ip = 10.1.0.0/21; owner = DA_abc;
 END
 
 $job = {
-    method => 'CreateHost',
+    method => 'create_host',
     params => {
         network => 'a',
         name    => 'name_10_1_1_3',
@@ -155,7 +155,7 @@ network:a = { ip = 10.1.0.0/21; owner = DA_abc;
 END
 
 $job = {
-    method => 'CreateHost',
+    method => 'create_host',
     params => {
         network => 'a',
         name    => 'name_10_1_1_3',
@@ -200,7 +200,7 @@ network:b = { ip = 10.8.0.0/21; }
 END
 
 $job = {
-    method => 'CreateHost',
+    method => 'create_host',
     params => {
         network => '[auto]',
         name    => 'name_10_1_1_4',
@@ -240,7 +240,7 @@ network:a = { ip = 10.1.0.0/21;
 END
 
 $job = {
-    method => 'CreateHost',
+    method => 'create_host',
     params => {
         network => '[auto]',
         name    => 'name_10_1_1_4',
@@ -258,7 +258,7 @@ END
 test_err($title, $in, $job, $out, other => $other);
 
 ############################################################
-$title = 'MultiJob: add host and owner';
+$title = 'multi_job: add host and owner';
 ############################################################
 
 $in = <<'END';
@@ -269,11 +269,11 @@ network:n1 = { ip = 10.1.1.0/24; }
 END
 
 $job = {
-    method => 'MultiJob',
+    method => 'multi_job',
     params => {
         jobs => [
             {
-                method => 'CreateOwner',
+                method => 'create_owner',
                 params => {
                     name     => 'a',
                     admins   => [ 'a@example.com', 'b@example.com' ],
@@ -281,7 +281,7 @@ $job = {
                 }
             },
             {
-                method => 'CreateHost',
+                method => 'create_host',
                 params => {
                     network => 'n1',
                     name    => 'name_10_1_1_4',
@@ -290,7 +290,7 @@ $job = {
                 }
             }
         ],
-        changeID => 'CRQ00001234',
+        crq => 'CRQ00001234',
     }
 };
 

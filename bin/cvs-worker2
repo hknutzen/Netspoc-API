@@ -6,7 +6,7 @@
 set -e
 
 JOB=$1
-MSG="API: $(jq -r '.params | .changeID' $JOB)"
+MSG="API: $(jq -r '.params | .crq' $JOB)"
 
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 

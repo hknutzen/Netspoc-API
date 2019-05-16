@@ -224,12 +224,12 @@ network:a = { ip = 10.1.1.0/24; } # Comment
 END
 
 my $job = {
-    method => 'CreateHost',
+    method => 'create_host',
     params => {
         network => 'a',
         name    => 'name_10_1_1_4',
         ip      => '10.1.1.4',
-        changeID => 'CRQ00001234',
+        crq     => 'CRQ00001234',
     },
     user => 'test',
     pass => 'test',
@@ -244,12 +244,12 @@ check_status($id2, 'WAITING', 'Job 2 waiting, no worker');
 my $pid = start_queue();
 
 my $id3 = add_job({
-    method => 'CreateHost',
+    method => 'create_host',
     params => {
         network => 'a',
         name    => 'name_10_1_1_5',
         ip      => '10.1.1.5',
-        changeID => 'CRQ000012345',
+        crq     => 'CRQ000012345',
     }});
 
 check_status($id1, 'INPROGRESS', 'Job 1 in progress');

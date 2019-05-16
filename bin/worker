@@ -26,7 +26,7 @@ abort () { echo "Error: $*" >&2; exit 1; }
 # Parameters are names of JSON attributes,
 # also used as shell variables.
 # Use "@name" for JSON attribute with array value.
-getParams () {
+get_params () {
     local query=''
     local q=''
     for i in $* ; do
@@ -51,8 +51,8 @@ getParams () {
 # Functions set global variables:
 # $found: filename that is to be processed
 # $filter: command line that reads from STDIN and writes to STDOUT
-CreateHost () {
-    getParams network name ip owner mask
+create_host () {
+    get_params network name ip owner mask
     if [ "$network" = '[auto]' ] ; then
         # Convert host IP and mask to network IP/prefixlen.
         local net_addr=$(bin/net-addr $ip $mask)
@@ -89,8 +89,8 @@ CreateHost () {
     fi
 }
 
-CreateOwner () {
-    getParams name @admins @watchers ok_if_exists
+create_owner () {
+    get_params name @admins @watchers ok_if_exists
     found=netspoc/owner
     if $EGREP -q "^[[:space:]]*owner:$name[[:space:]]*=" $found; then
         if [ -n "$ok_if_exists" ] ; then
@@ -105,8 +105,8 @@ CreateOwner () {
     fi
 }
 
-AddToGroup () {
-    getParams name object
+add_to_group () {
+    get_params name object
     # Search files containing group definition
     # and collect found filenames into array
     found=($($EGREP -rl "^[[:space:]]*group:$name[[:space:]]*=" netspoc)) ||
@@ -117,7 +117,7 @@ AddToGroup () {
 }
 
 # Call this script recursively for each sub job
-MultiJob () {
+multi_job () {
     local last=$(jq '.params | .jobs | length - 1' $job)
     for i in $(seq 0 $last) ; do
         local subjob="$job-$i"
@@ -132,10 +132,10 @@ job=$1
 
 method=$(jq -r '.method' $job)
 case $method in
-    CreateHost|CreateOwner|AddToGroup)
+    create_host|create_owner|add_to_group)
         $method
         ;;
-    MultiJob)
+    multi_job)
         $method
         exit 0
         ;;
