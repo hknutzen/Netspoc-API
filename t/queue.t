@@ -54,7 +54,8 @@ sub setup_backend {
     # Install versions of ssh and scp that use sh and cp instead.
     mkdir('my-bin');
     write_file("my-bin/ssh", <<"END");
-#!/bin/sh
+#!/bin/bash
+getopts q OPTION && shift
 shift		# ignore name of remote host
 if [ \$# -gt 0 ] ; then
     sh -c "cd $frontend; \$*"
@@ -63,7 +64,8 @@ else
 fi
 END
     write_file("my-bin/scp", <<"END");
-#!/bin/sh
+#!/bin/bash
+getopts q OPTION && shift
 replace () { echo \$1 | sed -E 's,^[^:]+:,$frontend/,'; }
 FROM=\$(replace \$1)
 TO=\$(replace \$2)

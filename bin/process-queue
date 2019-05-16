@@ -64,7 +64,7 @@ retry () {
 # set global variable INPROGRESS to "inprogress/job-id".
 get-job () {
     while true; do
-        INPROGRESS=$(ssh $REMOTE <<'EOF' 2>err
+        INPROGRESS=$(ssh -q $REMOTE <<'EOF' 2>err
 # Execute on remote server.
 # Abort on every error.
 set -e
@@ -104,7 +104,7 @@ EOF
         status-ok ssh-get
         break
     done
-    retry "scp $REMOTE:$INPROGRESS $INPROGRESS" scp-get
+    retry "scp -q $REMOTE:$INPROGRESS $INPROGRESS" scp-get
 }
 
 # Move result/job-id to remote server: result/job-id
@@ -114,8 +114,8 @@ mark-finished () {
     local RESULT=result/$JOB
     local INPROGRESS=inprogress/$JOB
     local FINISHED=finished/$JOB
-    retry "scp $RESULT $REMOTE:$RESULT" scp-put
-    retry "ssh $REMOTE mv $INPROGRESS $FINISHED" ssh-move
+    retry "scp -q $RESULT $REMOTE:$RESULT" scp-put
+    retry "ssh -q $REMOTE mv $INPROGRESS $FINISHED" ssh-move
     rm $RESULT
     rm -f $INPROGRESS
 }
