@@ -133,11 +133,13 @@ while true; do
         fi
         JOB=$(basename $INPROGRESS)
         FINISHED=finished/$JOB
+        TMP=$(mktemp -p .)
         # Store errors in $FINISHED.
         # File is emtpy on success.
-        $WORKER $INPROGRESS 2>$FINISHED ||
-            grep -q '[^[:space:]]' $FINISHED ||
-            echo "Unknown error" > $FINISHED
+        $WORKER $INPROGRESS 2>$TMP ||
+            grep -q '[^[:space:]]' $TMP ||
+            echo "Unknown error" > $TMP
+        mv $TMP $FINISHED
     fi
     move-result
     remove-job
