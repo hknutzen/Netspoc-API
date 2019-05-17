@@ -1,0 +1,42 @@
+#!/bin/sh
+USER=netspoc-api
+GROUP=users
+BASE=/home/$USER/bin
+IP=127.0.0.1
+PORT=5002
+WORKER=5
+# Change to 0, if mod_proxy is used.
+KEEPALIVE=0
+PIDFILE=/var/run/$USER/prod.pid
+
+case $1 in
+  start)
+        # Needed to find ~/config
+        HOME=/home/$USER
+        /usr/local/bin/starman \
+            -l $IP:$PORT \
+            -D \
+            --pid $PIDFILE \
+            --workers $WORKER \
+            --keepalive $KEEPALIVE \
+            --user $USER \
+            --group $GROUP \
+            $BASE/netspoc.psgi
+	;;
+  reload)
+	kill -HUP $(cat $PIDFILE)
+	;;
+  restart)
+	$0 start
+	sleep 1
+	$0 stop
+	;;
+  stop)
+	kill $(cat $PIDFILE)
+	rm -f $PIDFILE
+	;;
+  *)
+	echo "Usage: $0{start|reload|restart|stop}"
+	exit 1
+	;;
+esac
