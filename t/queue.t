@@ -36,7 +36,7 @@ sub setup_frontend {
     $frontend = tempdir(CLEANUP => 1);
 
     # Make worker scripts available.
-    symlink("$API_DIR/bin", "$frontend/bin");
+    symlink("$API_DIR/frontend", "$frontend/bin");
 }
 
 # Prepare directory for backend, prepare fake versions of ssh and scp.
@@ -72,7 +72,7 @@ END
     $ENV{PATH} = "$backend/my-bin:$ENV{PATH}";
 
     # Make worker scripts available.
-    symlink("$API_DIR/bin", 'bin');
+    symlink("$API_DIR/backend", 'bin');
 }
 
 sub add_job {

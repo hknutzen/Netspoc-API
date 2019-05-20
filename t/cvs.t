@@ -33,7 +33,7 @@ sub test_worker {
     chdir $home_dir;
 
     # Make worker scripts available.
-    symlink("$API_DIR/bin", 'bin');
+    symlink("$API_DIR/backend", 'bin');
 
     setup_netspoc($home_dir, $in);
 
