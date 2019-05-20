@@ -115,7 +115,10 @@ mark-finished () {
     local INPROGRESS=inprogress/$JOB
     local FINISHED=finished/$JOB
     retry "scp -q $RESULT $REMOTE:$RESULT" scp-put
-    retry "ssh -q $REMOTE mv $INPROGRESS $FINISHED" ssh-move
+
+    # Ignore error if file was already moved before,
+    # but still retry, if ssh fails.
+    retry "ssh -q $REMOTE mv $INPROGRESS $FINISHED || true" ssh-move
     rm $RESULT
     rm -f $INPROGRESS
 }
