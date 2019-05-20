@@ -1,4 +1,17 @@
 #!/bin/sh
+
+#
+#  Startup script for web server of Netspoc-API
+#
+### BEGIN INIT INFO
+# Provides:          netspoc-api
+# Required-Start:    $network
+# Required-Stop:
+# Default-Start:     3 5
+# Default-Stop:      0 1 2 6
+# Description:       Start Netspoc-API
+### END INIT INFO
+
 USER=netspoc-api
 GROUP=users
 BASE=/home/$USER/bin
