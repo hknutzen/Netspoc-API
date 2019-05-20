@@ -115,8 +115,7 @@ my $server;
 
 sub setup_www {
     my $conf_data = {
-        user => 'test',
-        pass => 'test',
+        user => { test => { pass => 'test', } }
     };
     write_file("$frontend/config", encode_json($conf_data));
     local $ENV{HOME} = $frontend;

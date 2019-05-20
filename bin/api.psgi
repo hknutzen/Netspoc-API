@@ -83,15 +83,16 @@ sub authenticate {
     # Delete password from request, must not be stored in queue.
     my $pass = delete $json->{pass} or abort "Missing 'pass'";
 
-    if (my $ldap_uri = $config->{ldap_uri}) {
+    my $user_conf = $config->{user}->{$user} or abort('Unknown user');
+    if (my $user_pass = $user_conf->{pass}) {
+        $pass eq  $user_pass or abort('Local authentication failed');
+    }
+    elsif ($user_conf->{ldap}) {
+        my $ldap_uri = $config->{ldap_uri};
         my $ldap = Net::LDAP->new($ldap_uri, onerror => 'undef') or
             abort "LDAP connect failed: $@";
-        $ldap->bind($user, password => $pass) or abort('Authentication failed');
-    }
-    elsif (my $test_user = $config->{user}) {
-        my $test_pass = $config->{pass} || '';
-        $user eq  $test_user and $pass eq  $test_pass or
-            abort('Local authentication failed');
+        $ldap->bind($user, password => $pass) or
+            abort('LDAP authentication failed');
     }
     else {
         abort('No authentication method configured');
