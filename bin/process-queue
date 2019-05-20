@@ -104,7 +104,10 @@ EOF
         status-ok ssh-get
         break
     done
-    retry "scp -q $REMOTE:$INPROGRESS $INPROGRESS" scp-get
+    local JOB=$(basename $INPROGRESS)
+    local TMP=tmp/$JOB
+    retry "scp -q $REMOTE:$INPROGRESS $TMP" scp-get
+    mv $TMP $INPROGRESS
 }
 
 # Move result/job-id to remote server: result/job-id
@@ -112,18 +115,20 @@ EOF
 mark-finished () {
     local JOB=$1
     local RESULT=result/$JOB
+    local TMP=tmp/$JOB
     local INPROGRESS=inprogress/$JOB
     local FINISHED=finished/$JOB
-    retry "scp -q $RESULT $REMOTE:$RESULT" scp-put
+    retry "scp -q $RESULT $REMOTE:$TMP" scp-put
+    retry "ssh -q $REMOTE mv $TMP $RESULT" ssh-mv-result
 
     # Ignore error if file was already moved before,
     # but still retry, if ssh fails.
-    retry "ssh -q $REMOTE mv $INPROGRESS $FINISHED || true" ssh-move
+    retry "ssh -q $REMOTE mv $INPROGRESS $FINISHED || true" ssh-mv-job
     rm $RESULT
     rm -f $INPROGRESS
 }
 
-mkdir -p inprogress result status
+mkdir -p inprogress result status tmp
 while true; do
 
     # Read job names.
@@ -137,7 +142,7 @@ while true; do
         fi
         JOB=$(basename $INPROGRESS)
         RESULT=result/$JOB
-        TMP=$(mktemp -p .)
+        TMP=tmp/$JOB
         # Store errors in $RESULT.
         # File is emtpy on success.
         $WORKER $INPROGRESS 2>$TMP ||

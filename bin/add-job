@@ -65,12 +65,12 @@ close $fh;
 $/ = undef;
 my $data = <>;
 
-($fh, my $tmpname) = tempfile( DIR => './' );
+($fh, my $tmpname) = tempfile( DIR => 'tmp' );
 print $fh $data;
 close $fh;
 
 my $job = "$queue/$count";
-rename $tmpname, $job or die "Can't mv tempfile to $job: $!";
+rename $tmpname, $job or die "Can't mv $tmpname to $job: $!";
 
 # Print ID of new job to STDOUT.
 print $count;
