@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-#  Startup script for web server of Netspoc-API
+#  Start web server of Netspoc-API
 #
 ### BEGIN INIT INFO
 # Provides:          netspoc-api
@@ -9,23 +9,23 @@
 # Required-Stop:
 # Default-Start:     3 5
 # Default-Stop:      0 1 2 6
-# Description:       Start Netspoc-API
+# Description:       Start frontend of Netspoc-API
 ### END INIT INFO
 
 USER=netspoc-api
 GROUP=users
-BASE=/home/$USER/bin
+# Needed to find ~/config
+HOME=$(getent passwd $USER | cut -d: -f6)
+PSGI=$HOME/bin/api.psgi
 IP=127.0.0.1
 PORT=5002
 WORKER=5
 # Change to 0, if mod_proxy is used.
 KEEPALIVE=0
-PIDFILE=/var/run/$USER/prod.pid
+PIDFILE=/var/run/netspoc-api/prod.pid
 
 case $1 in
   start)
-        # Needed to find ~/config
-        HOME=/home/$USER
         /usr/local/bin/starman \
             -l $IP:$PORT \
             -D \
@@ -34,7 +34,7 @@ case $1 in
             --keepalive $KEEPALIVE \
             --user $USER \
             --group $GROUP \
-            $BASE/netspoc.psgi
+            $PSGI
 	;;
   reload)
 	kill -HUP $(cat $PIDFILE)
