@@ -68,6 +68,8 @@ get-job () {
 # Execute on remote server.
 # Abort on every error.
 set -e
+mkdir -p waiting inprogress finished result tmp
+
 JOB=$(ls inprogress | head -n1)
 
 # Found stale job in "inprogress".

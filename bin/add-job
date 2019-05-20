@@ -30,14 +30,13 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 use strict;
 use warnings;
 use Fcntl qw(:seek :flock);
-use File::Temp qw(tempfile);
 
 chdir($ENV{HOME}) or die "Can't cd to '$ENV{HOME}': $!\n";
 
 # Jobs are stored in directory waiting/ in files 1, 2, 3, ...
 # File name for storing number of last stored job.
 my $counter = 'job-counter';
-my $queue = 'waiting';
+system('mkdir -p waiting tmp');
 
 # Initialize job number on first run
 -f $counter or
@@ -65,11 +64,12 @@ close $fh;
 $/ = undef;
 my $data = <>;
 
-($fh, my $tmpname) = tempfile( DIR => 'tmp' );
+my $tmpname = "tmp/$count";
+open($fh, '>', $tmpname) or die "Cant't open $tmpname: $!\n";
 print $fh $data;
 close $fh;
 
-my $job = "$queue/$count";
+my $job = "waiting/$count";
 rename $tmpname, $job or die "Can't mv $tmpname to $job: $!";
 
 # Print ID of new job to STDOUT.

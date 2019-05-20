@@ -35,11 +35,6 @@ sub setup_frontend {
     # Create working directory.
     $frontend = tempdir(CLEANUP => 1);
 
-    # Create directories for queues.
-    for my $dir (qw(waiting inprogress finished result tmp)) {
-        system "mkdir -p $frontend/$dir"
-    }
-
     # Make worker scripts available.
     symlink("$API_DIR/bin", "$frontend/bin");
 }
@@ -94,7 +89,7 @@ sub add_job {
     die if $? & 127;
 
     my $status = $? >> 8;
-    $status == 0 or BAIL_OUT "Unexpected error with job $job";
+    $status == 0 or BAIL_OUT "Unexpected error with job: $stdin\n$stderr";
     return $stdout;
 }
 
