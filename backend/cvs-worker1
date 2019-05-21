@@ -39,7 +39,7 @@ cvs -Q checkout netspoc 2>err ||
 bin/worker $*
 
 # Compile changed files, check for errors.
-if ! netspoc -q netspoc code 2>err ; then
+if ! netspoc -q netspoc 2>err ; then
     abort-err "Netspoc failed:"
 fi
 

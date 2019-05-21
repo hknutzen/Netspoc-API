@@ -50,7 +50,7 @@ sub test_worker {
     }
 
     # Run Netspoc.
-    ($success, $stderr) = run('netspoc -q netspoc code');
+    ($success, $stderr) = run('netspoc -q netspoc');
 
     # Handle warnings as errors.
     $success = 0 if $stderr;
