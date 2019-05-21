@@ -70,29 +70,24 @@ get-job () {
 set -e
 mkdir -p waiting inprogress finished result tmp
 
-JOB=$(ls inprogress | head -n1)
-
-# Found stale job in "inprogress".
-if [ -n "$JOB" ] ; then
-    # Job already has been finished.
-    if [ -f finished/$JOB ] ; then
-        rm inprogress/$JOB
-    else
-        # Process this job again.
-        # Announce found file to STDOUT.
-        echo inprogress/$JOB
-        exit
-    fi
-fi
-
-# Wait for jobs appearing in directory "waiting".
 while true; do
-    # Take oldest job: first element of list
-    JOB=$(ls -rt waiting | head -n1)
+
+    # Look for stale job in directory "inprogress".
+    # Check "inprogress" inside loop, because a copy of this script
+    # (started by ssh) may still be running, if outer script was restarted.
+    JOB=$(ls -rt inprogress | head -n1)
+    if [ -z "$JOB" ] ; then
+
+        # Wait for jobs appearing in directory "waiting".
+        # Take oldest job: first element of list
+        JOB=$(ls -rt waiting | head -n1)
+        if [ -n "$JOB" ] ; then
+            # Found job, move from "waiting" to "inprogress".
+            mv waiting/$JOB inprogress/$JOB
+        fi
+    fi
     if [ -n "$JOB" ] ; then
-        # Found job, move from "waiting" to "inprogress".
         # Announce found file on STDOUT.
-        mv waiting/$JOB inprogress/$JOB
         echo inprogress/$JOB
         exit
     fi
