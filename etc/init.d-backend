@@ -24,14 +24,14 @@ case "$1" in
         sudo -u $USER -i -b -- $RUNNER $FRONTEND $WORKER
         ;;
     stop)
-        killall -u $USER -- $(basename $RUNNER)
+        # Stop process-group: also ssh to frontend
+        killall -g -u $USER -- $(basename $RUNNER)
         ;;
     restart)
-	     $0 start
-	     sleep 1
-	     $0 stop
-	     ;;
-
+        $0 start
+        sleep 1
+        $0 stop
+        ;;
     *)
         echo "Usage: $0 start|restart|stop"
         exit 1
