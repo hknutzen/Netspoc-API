@@ -22,7 +22,7 @@ PORT=5002
 WORKER=5
 # Change to 0, if mod_proxy is used.
 KEEPALIVE=0
-PIDFILE=/var/run/netspoc-api/prod.pid
+PIDFILE=/var/run/$USER.pid
 
 case $1 in
   start)
