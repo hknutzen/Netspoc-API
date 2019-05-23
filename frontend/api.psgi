@@ -30,6 +30,8 @@ use Plack::Util;
 use Plack::Request;
 use Plack::Response;
 use IPC::Run3;
+use Digest::SHA qw/sha256_hex/;
+use Crypt::SaltedHash;
 
 # JSON file with
 # either
@@ -86,8 +88,9 @@ sub authenticate {
     my $pass = delete $json->{pass} or abort "400 Missing 'pass'";
 
     my $user_conf = $config->{user}->{$user} or abort('400 Unknown user');
-    if (my $user_pass = $user_conf->{pass}) {
-        $pass eq  $user_pass or abort('400 Local authentication failed');
+    if (my $hash = $user_conf->{hash}) {
+        Crypt::SaltedHash->validate($hash, $pass) or
+            abort('400 Local authentication failed');
     }
     elsif ($user_conf->{ldap}) {
         my $ldap_uri = $config->{ldap_uri};

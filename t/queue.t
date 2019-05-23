@@ -114,12 +114,14 @@ sub job_status {
 my $server;
 
 sub setup_www {
-    my $conf_data = {
-        user => { test => { pass => 'test', } }
-    };
-    write_file("$frontend/config", encode_json($conf_data));
     local $ENV{HOME} = $frontend;
     chdir;
+    my $hash = `echo 'test' | bin/salted_hash`;
+    my $conf_data = {
+        user => { test => { hash => $hash, } }
+    };
+    write_file('config', encode_json($conf_data));
+
     my $app;
 
     # Load psgi file into separate namespace to avoid name conflicts.
