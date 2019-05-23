@@ -850,13 +850,18 @@ $title = 'Add host [auto]';
 
 $in = <<'END';
 -- topology
-#network:c
+#network:c = {
 # ip = 10.1.0.0/21;
+network:d = { ip = 10.2.0.0/21; }
 network:a = {
  # Comment
-#network:b
+#network:b = {
  ip = 10.1.0.0/21;
  # Comment2
+}
+router:r = {
+ interface:a;
+ interface:d;
 }
 END
 
@@ -872,12 +877,14 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -5,4 +5,5 @@
- #network:b
+@@ -6,6 +6,7 @@
+ #network:b = {
   ip = 10.1.0.0/21;
   # Comment2
 + host:name_10_1_1_4			= { ip = 10.1.1.4; }
  }
+ router:r = {
+  interface:a;
 END
 
 test_run($title, $in, $job, $out);
@@ -961,7 +968,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Found multiple networks with 'ip = 10.1.0.0/21' in netspoc/topology: network:a network:b
+Error: Found multiple networks with 'ip = 10.1.0.0/21' in: netspoc/topology
 END
 
 test_err($title, $in, $job, $out);
@@ -994,7 +1001,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Found multiple networks with 'ip = 10.1.0.0/21' in netspoc/topology: network:a network:b
+Error: Found multiple networks with 'ip = 10.1.0.0/21' in: netspoc/topology
 END
 
 test_err($title, $in, $job, $out);

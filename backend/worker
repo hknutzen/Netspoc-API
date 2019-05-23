@@ -65,15 +65,17 @@ create_host () {
         [ ${#found[*]} -gt 1 ] &&
             abort "Found multiple occurrences of 'ip = $net_addr' in:" \
                   ${found[*]}
+        # Check for multiple occurrences of IP in found file.
+        [ $(egrep "$pattern" $found | wc -l) -gt 1 ] &&
+            abort "Found multiple networks with 'ip = $net_addr' in: $found"
         # Find occurrences of network:NAME up to 20 lines before IP pattern.
-        network=($(egrep -B20 "$pattern" $found |
+        network=$(egrep -B20 "$pattern" $found |
                          egrep '^[^#]+' |
-                         egrep -o 'network:[^[:space:]]+')) ||
+                         egrep -o 'network:[^[:space:]]+' |
+                         tail -n1)
+        [ -n "$network" ] ||
             abort "Can't find network definition for 'ip = $net_addr' in $found"
-        [ ${#network[*]} -gt 1 ] &&
-            abort "Found multiple networks with 'ip = $net_addr' in $found:" \
-                  ${network[*]}
-        network=$(echo $network | cut -d: -f2)
+         network=$(echo $network | cut -d: -f2)
     else
         # Search files containing network definition
         # and collect found filenames into array
