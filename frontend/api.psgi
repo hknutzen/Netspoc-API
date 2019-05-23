@@ -46,6 +46,8 @@ my %path2sub =
   'job-status'  => \&job_status,
 );
 
+# Parameter is HTTP error message, optionally preceeded by status code.
+# Use 500 as default.
 sub abort {
     my ($msg) = @_;
     die "$msg\n";
@@ -53,7 +55,7 @@ sub abort {
 
 sub load_config {
     my $result;
-    open( my $fh, '<', $conf_file ) or abort("Can't open $conf_file: $!");
+    open( my $fh, '<', $conf_file ) or abort("Can't open '$conf_file': $!");
     local $/ = undef;
     return from_json(  <$fh>, { relaxed  => 1 } );
 }
@@ -78,21 +80,21 @@ sub job_status {
 
 sub authenticate {
     my ($json) = @_;
-    my $user = $json->{user} or abort "Missing 'user'";
+    my $user = $json->{user} or abort "400 Missing 'user'";
 
     # Delete password from request, must not be stored in queue.
-    my $pass = delete $json->{pass} or abort "Missing 'pass'";
+    my $pass = delete $json->{pass} or abort "400 Missing 'pass'";
 
-    my $user_conf = $config->{user}->{$user} or abort('Unknown user');
+    my $user_conf = $config->{user}->{$user} or abort('400 Unknown user');
     if (my $user_pass = $user_conf->{pass}) {
-        $pass eq  $user_pass or abort('Local authentication failed');
+        $pass eq  $user_pass or abort('400 Local authentication failed');
     }
     elsif ($user_conf->{ldap}) {
         my $ldap_uri = $config->{ldap_uri};
         my $ldap = Net::LDAP->new($ldap_uri, onerror => 'undef') or
             abort "LDAP connect failed: $@";
         $ldap->bind($user, password => $pass) or
-            abort('LDAP authentication failed');
+            abort('400 LDAP authentication failed');
     }
     else {
         abort('No authentication method configured');
@@ -101,18 +103,29 @@ sub authenticate {
 
 sub handle_request {
     my ($env) = @_;
-    my $req = Plack::Request->new($env);
-    my $path = $req->path_info();
-    $path =~ s:^/::;
-    my $handler = $path2sub{$path} or abort "Unknown path '$path'";
-    my $job = decode_json($req->content());
-    authenticate($job);
-    my $result = $handler->($job);
     my $res = Plack::Response->new(200);
-    $res->content_type('application/json');
-    $res->body($result);
+    # Catch errors.
+    eval {
+        my $req = Plack::Request->new($env);
+        my $path = $req->path_info();
+        $path =~ s:^/::;
+        my $handler = $path2sub{$path} or abort "400 Unknown path '$path'";
+        my $job = decode_json($req->content());
+        authenticate($job);
+        my $result = $handler->($job);
+        $res->content_type('application/json');
+        $res->body($result);
+    };
+    if ($@) {
+        my $msg = $@;
+        $msg =~ s/(\d\d\d) *//;
+        $res->status($1 || 500);
+        $res->content_type('text/plain; charset=utf-8');
+        $res->body($msg);
+    }
     return $res->finalize;
 }
 
+chdir $ENV{HOME};
 $config = load_config();
 my $app = \&handle_request;
