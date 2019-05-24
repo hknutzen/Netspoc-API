@@ -9,10 +9,10 @@ Netspoc configuration.
 * [Asynchronous processing](#asynchronous-processing)
 * [Authentication](#authentication)
 * [Jobs](#jobs)
-  * [create_host](#createhost)
-  * [create_owner](#createowner)
-  * [add_to_group](#add_togroup)
-  * [multi_job](#multijob)
+  * [create_host](#create_host)
+  * [create_owner](#create_owner)
+  * [add_to_group](#add_to_group)
+  * [multi_job](#multi_job)
 
 
 ### Asynchronous processing
