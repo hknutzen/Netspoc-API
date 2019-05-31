@@ -11,7 +11,7 @@ CURRENT=$POLICYDB/current
 NEXT=$POLICYDB/next
 LOG=$CURRENT/compile.log
 # File exists if compile failed and compile.log may be outdated.
-FAILED=$NEXT/failed
+FAILED=$POLICYDB/failed
 
 
 # Work in $HOME where paths are known.

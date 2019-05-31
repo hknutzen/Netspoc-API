@@ -75,6 +75,15 @@ END
     symlink("$API_DIR/backend", 'bin');
 }
 
+sub change_netspoc {
+    my ($in) = @_;
+    local $ENV{HOME} = $backend;
+    chdir;
+    prepare_dir('netspoc', $in);
+    system "cvs -Q commit -m test netspoc >/dev/null";
+    system 'newpolicy.pl >/dev/null 2>&1';
+}
+
 sub add_job {
     my ($job) = @_;
     local $ENV{HOME} = $frontend;
@@ -234,9 +243,7 @@ my $job = {
 };
 
 my $id1 = add_job($job);
-
-@{$job}{qw(user pass)} = qw(test test);
-my $id2 = www_add_job($job);
+my $id2 = www_add_job({ %$job, user => 'test', pass => 'test', });
 
 check_status($id1, 'WAITING', 'Job 1 waiting, no worker');
 check_status($id2, 'WAITING', 'Job 2 waiting, no worker');
@@ -273,13 +280,32 @@ Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
 Aborted with 2 error(s)
 END
 
-stop_queue($pid);
-
 www_check_status(
     { id => $id3, user => 'test', pass => 'test' },
     'FINISHED', 'Job 3 success, no worker');
 
 check_log('', 'Empty log');
+
+# Check in bad content to repository, so processing stops.
+change_netspoc(<<'END');
+-- topology
+network:a = { ip = 10.1.1.0/24; }  BAD SYNTAX
+END
+my $id = add_job($job);
+sleep 1;
+check_status($id, 'INPROGRESS', 'Wait on bad repository');
+sleep 2;
+check_status($id, 'INPROGRESS', 'Still wait on bad repository');
+
+# Fix bad content.
+change_netspoc(<<'END');
+-- topology
+network:a = { ip = 10.1.1.0/24; } # Comment
+END
+wait_job($id);
+check_status($id, 'FINISHED', 'Success after fixing repository');
+
+stop_queue($pid);
 
 # Let "scp" fail
 write_file("$backend/my-bin/scp", <<"END");
@@ -288,7 +314,7 @@ echo "scp: can't connect" >&2
 exit 1
 END
 
-my $id = add_job($job);
+$id = add_job($job);
 $pid = start_queue();
 sleep 1;
 check_log("scp: can't connect\n", 'scp failed');
