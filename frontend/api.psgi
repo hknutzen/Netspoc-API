@@ -93,7 +93,8 @@ sub authenticate {
             abort('400 Local authentication failed');
     }
     elsif ($user_conf->{ldap}) {
-        my $ldap_uri = $config->{ldap_uri};
+        my $ldap_uri = $config->{ldap_uri} or
+            abort('No "ldap_uri" has been configured');
         my $ldap = Net::LDAP->new($ldap_uri, onerror => 'undef') or
             abort "LDAP connect failed: $@";
         $ldap->bind($user, password => $pass) or
