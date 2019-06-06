@@ -59,7 +59,8 @@ sub load_config {
     my $result;
     open( my $fh, '<', $conf_file ) or abort("Can't open '$conf_file': $!");
     local $/ = undef;
-    return from_json(  <$fh>, { relaxed  => 1 } );
+    $config =from_json(  <$fh>, { relaxed  => 1 } );
+    close $fh;
 }
 
 sub add_job {
@@ -131,5 +132,5 @@ sub handle_request {
 }
 
 chdir $ENV{HOME};
-$config = load_config();
+load_config();
 my $app = \&handle_request;
