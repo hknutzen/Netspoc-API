@@ -28,9 +28,8 @@ case "$1" in
         killall -g -u $USER -- $(basename $RUNNER)
         ;;
     restart)
-        $0 start
-        sleep 1
         $0 stop
+        $0 start
         ;;
     *)
         echo "Usage: $0 start|restart|stop"

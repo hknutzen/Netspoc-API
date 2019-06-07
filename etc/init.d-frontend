@@ -40,9 +40,9 @@ case $1 in
       kill -HUP $(cat $PIDFILE)
       ;;
   restart)
-      $0 start
-      sleep 1
       $0 stop
+      sleep 1
+      $0 start
       ;;
   stop)
       kill $(cat $PIDFILE)
