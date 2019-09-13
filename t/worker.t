@@ -1080,7 +1080,7 @@ $job = {
                 method => 'create_owner',
                 params => {
                     name     => 'a',
-                    admins   => [ 'a@example.com', 'b@example.com' ],
+                    admins   => [ 'b@example.com', 'a@example.com' ],
                     watchers => [ 'c@example.com', 'd@example.com' ],
                 }
             },

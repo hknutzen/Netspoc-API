@@ -81,13 +81,13 @@ if ($pos < @lines) {
 # Insert new owner at found position $pos.
 my $new = "owner:$owner_name = {\n";
 $new .= " admins =\n";
-for my $admin (split ',', $admins) {
+for my $admin (sort split ',', $admins) {
     $new .= "\t$admin,\n";
 }
 $new .= "\t;\n";
 if ($watchers) {
     $new .= " watchers =\n";
-    for my $watcher (split ',', $watchers) {
+    for my $watcher (sort split ',', $watchers) {
         $new .= "\t$watcher,\n";
     }
     $new .= "\t;\n";
