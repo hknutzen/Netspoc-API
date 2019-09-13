@@ -61,7 +61,7 @@ find_file () {
 }
 # Functions set global variables:
 # $found: filename that is to be processed
-# $args: arguments to $filter command
+# $args: Array with arguments to $filter command
 create_host () {
     get_params network name ip owner mask
     if [ "$network" = '[auto]' ] ; then
@@ -90,16 +90,13 @@ create_host () {
     else
         find_file "network:$network"
     fi
-    args="$network $name $ip"
-    if [ -n "$owner" ] ; then
-        args="$args $owner"
-    fi
+    args=($network $name $ip $owner)
 }
 
 change_host () {
     get_params name owner
     find_file "host:$name"
-    args="$name $owner"
+    args=($name $owner)
 }
 
 create_owner () {
@@ -114,22 +111,27 @@ create_owner () {
     fi
     # Create owner regardless of existing one; this will result in error.
     found=netspoc/owner
-    args="$name $admins"
-    if [ "$watchers" != 'null' ] ; then
-        args="$args $watchers"
-    fi
+    args=($name "$admins" "$watchers")
+}
+
+modify_owner () {
+    get_params name @admins @watchers
+    find_file "owner:$name"
+    # If value is 'null' then leave value unchanged.
+    # If value is '' (empty) then remove attribute.
+    args=($name "$admins" "$watchers")
 }
 
 delete_owner () {
     get_params name
     find_file "owner:$name"
-    args="$name"
+    args=($name)
 }
 
 add_to_group () {
     get_params name object
     find_file "group:$name"
-    args="$name $object"
+    args=($name $object)
 }
 
 # Call this script recursively for each sub-job
@@ -150,7 +152,7 @@ job=$1
 # Command that reads from STDIN and writes to STDOUT.
 method=$(jq -r '.method' $job)
 case $method in
-    create_host|create_owner|delete_owner|add_to_group)
+    create_host|create_owner|modify_owner|delete_owner|add_to_group)
         filter="bin/$(echo $method | sed 's/_/-/g')"
         $method
         ;;
@@ -165,7 +167,7 @@ esac
 tmpfile=$(mktemp -p $HOME)
 trap "rm -f $tmpfile" EXIT
 # Call filter with args on found file.
-$filter $args < $found > $tmpfile
+$filter "${args[@]}" < $found > $tmpfile
 # Move tempfile to original file.
 chmod u+w $found
 mv $tmpfile $found

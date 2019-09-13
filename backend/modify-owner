@@ -1,0 +1,174 @@
+#!/usr/bin/env perl
+
+=head1 NAME
+
+modify-owner - Modify existing owner entry
+
+=head1 SYNOPSIS
+
+modify-owner name admin-list watcher-list
+
+=head1 DESCRIPTION
+
+List is a comma separated list of values or 'null'.
+Replaces attribute 'admins' and/or 'watchers' with given list
+or leaves attribute unchanged if value is 'null'.
+
+=head1 COPYRIGHT AND DISCLAIMER
+
+(c) 2019 by Heinz Knutzen <heinz.knutzen@googlemail.com>
+
+http://hknutzen.github.com/Netspoc-API
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+=cut
+
+use strict;
+use warnings;
+use open qw(:std :utf8);
+use Pod::Usage;
+
+sub abort {
+    my (@args) = @_;
+    die "Error: ", @args, "\n";
+}
+
+####################################################################
+# Argument processing
+####################################################################
+
+# Make @ARGV utf-8.
+$_ = Encode::decode('UTF-8' , $_) for @ARGV;
+
+my $name = shift @ARGV or pod2usage(2);
+my $admins = shift @ARGV // pod2usage(2);
+my $watchers = shift @ARGV // pod2usage(2);
+@ARGV and pod2usage(2);
+
+####################################################################
+# Main program
+####################################################################
+
+# Read to be changed lines from STDIN.
+my @lines = <>;
+
+# Number of current line.
+my $pos = 0;
+
+# First and last line of definition.
+my $start_pos;
+my $end_pos;
+
+# Find definition of to be modified owner.
+# "=" must be located on same line.
+my $definition = "owner:$name";
+while ($pos < @lines) {
+    if ($lines[$pos] =~ /^ \s* $definition \s* =/x) {
+        $start_pos = $pos;
+        last;
+    }
+    $pos++;
+}
+if (not defined $start_pos) {
+    abort("Can't find $definition");
+}
+
+# Find "}" at end of definition
+while ($pos < @lines) {
+    if ($lines[$pos] =~ /^ [^#]* \} /x) {
+        $end_pos = $pos;
+        last;
+    }
+    $pos++;
+}
+if (not defined $end_pos) {
+    abort("Can't find terminating '}' of $definition");
+}
+
+# Split line, if terminating '}' is prefixed by some other code.
+if ($lines[$end_pos] =~ /^ (\s*\S.*) (\} .*) $/x) {
+    my $prefix = $1;
+    my $rest = $2;
+    splice(@lines, $end_pos, 1, "$prefix\n", "$rest\n");
+    $end_pos++;
+}
+
+# Substitute attribute 'admins' or add new attribute 'admins'.
+# Move positions before watchers or insert before closing '}'.
+if ($admins ne 'null') {
+    my $old = delete_attr('admins');
+    my $w_pos = find_attr('watchers');
+    my $new_pos = $w_pos // $old // $end_pos;
+    insert_attr('admins', $admins, $new_pos);
+}
+
+# Substitute attribute 'watchers' or newly add before closing '}'.
+if ($watchers ne 'null') {
+    my $watchers_pos = delete_attr('watchers') // $end_pos;
+    insert_attr('watchers', $watchers, $watchers_pos);
+}
+
+# Write changed lines to STDOUT.
+print @lines;
+
+# Find line with attribute.
+sub find_attr {
+    my ($attr) = @_;
+    $pos = $start_pos;
+    while ($pos < $end_pos) {
+        if ($lines[$pos] =~ /^ \s* $attr \s* = /x) {
+            return $pos;
+        }
+        $pos++;
+    }
+    return;
+}
+
+# Try to delete attribute.
+# If found, return line number of first deleted line.
+sub delete_attr {
+    my ($attr) = @_;
+    my $start = $pos = find_attr($attr) // return;
+    while ($pos < $end_pos) {
+        if ($lines[$pos] =~ /^ [^#;]* ; ( .* ) $/x) {
+            my $trailing = $1;
+            my $end = $pos;
+            my $count = $end - $start + 1;
+            splice(@lines, $start, $count);
+            # If non comment is trailing, add content to new line.
+            if ($trailing !~ /^ \s* (?: [#] .* )? $/x) {
+                splice(@lines, $start, 0, "$trailing\n");
+                $count--;
+            }
+            $end_pos -= $count;
+            return $start;
+        }
+        $pos++;
+    }
+    abort("Can't find terminating ';' of '$attr' of $definition")
+}
+
+sub insert_attr {
+    my ($attr, $values, $insert_pos) = @_;
+    if (not $values) {
+        return;
+    }
+    my @new = " $attr =\n";
+    for my $admin (sort split ',', $values) {
+        push @new, "\t$admin,\n";
+    }
+    push @new, "\t;\n";
+    splice(@lines, $insert_pos, 0, @new);
+    $end_pos += @new;
+    return;
+}

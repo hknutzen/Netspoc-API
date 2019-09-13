@@ -85,7 +85,7 @@ for my $admin (sort split ',', $admins) {
     $new .= "\t$admin,\n";
 }
 $new .= "\t;\n";
-if ($watchers) {
+if ($watchers ne 'null') {
     $new .= " watchers =\n";
     for my $watcher (sort split ',', $watchers) {
         $new .= "\t$watcher,\n";

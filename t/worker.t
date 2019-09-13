@@ -491,6 +491,152 @@ END
 test_err($title, $in, $job, $out);
 
 ############################################################
+$title = 'Modify owner: change admins, add watchers';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+owner:a = {
+ admins = a@example.com; } # Comment
+END
+
+$job = {
+    method => 'modify_owner',
+    params => {
+        name => 'a',
+        admins => [ 'b@example.com', 'a@example.com' ],
+        watchers => [ 'c@example.com', 'd@example.com' ]
+    }
+};
+
+$out = <<'END';
+netspoc/topology
+@@ -1,3 +1,11 @@
+ network:n1 = { ip = 10.1.1.0/24; owner = a; }
+ owner:a = {
+- admins = a@example.com; } # Comment
++ admins =
++	a@example.com,
++	b@example.com,
++	;
++ watchers =
++	c@example.com,
++	d@example.com,
++	;
++} # Comment
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Modify owner with swapped admins and watchers';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+owner:a = {
+ watchers = b@example.com;
+ admins   = a@example.com; }
+END
+
+$job = {
+    method => 'modify_owner',
+    params => {
+        name => 'a',
+        admins => [ 'b@example.com' ],
+        watchers => [ 'c@example.com' ]
+    }
+};
+
+$out = <<'END';
+netspoc/topology
+@@ -1,4 +1,9 @@
+ network:n1 = { ip = 10.1.1.0/24; owner = a; }
+ owner:a = {
+- watchers = b@example.com;
+- admins   = a@example.com; }
++ admins =
++	b@example.com,
++	;
++ watchers =
++	c@example.com,
++	;
++}
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Modify owner: leave admins untouched, remove watchers';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+owner:a = {
+ watchers = b@example.com;
+ admins   = a@example.com;
+}
+END
+
+$job = {
+    method => 'modify_owner',
+    params => {
+        name => 'a',
+        watchers => []
+    }
+};
+
+$out = <<'END';
+netspoc/topology
+@@ -1,5 +1,4 @@
+ network:n1 = { ip = 10.1.1.0/24; owner = a; }
+ owner:a = {
+- watchers = b@example.com;
+  admins   = a@example.com;
+ }
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Modify owner: multiple attributes in one line';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+owner:a = {
+ admins = a@example.com; watchers = b@example.com;
+}
+END
+
+$job = {
+    method => 'modify_owner',
+    params => {
+        name => 'a',
+        admins => [ 'c@example.com' ]
+    }
+};
+
+$out = <<'END';
+netspoc/topology
+@@ -1,4 +1,7 @@
+ network:n1 = { ip = 10.1.1.0/24; owner = a; }
+ owner:a = {
+- admins = a@example.com; watchers = b@example.com;
++ admins =
++	c@example.com,
++	;
++ watchers = b@example.com;
+ }
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
 $title = 'Add host to known network';
 ############################################################
 
