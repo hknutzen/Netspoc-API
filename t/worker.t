@@ -456,6 +456,41 @@ END
 test_err($title, $in, $job, $out);
 
 ############################################################
+$title = 'Delete still referenced owner';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+-- owner
+owner:a = {
+ admins = a@example.com; #}
+} # end
+# next line
+END
+
+$job = {
+    method => 'delete_owner',
+    params => {
+        name => 'a',
+    }
+};
+
+$out = <<'END';
+Error: Can't resolve reference to 'a' in attribute 'owner' of network:n1
+Aborted with 1 error(s)
+---
+netspoc/owner
+@@ -1,4 +1 @@
+-owner:a = {
+- admins = a@example.com; #}
+-} # end
+ # next line
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 $title = 'Add host to known network';
 ############################################################
 

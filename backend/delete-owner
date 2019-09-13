@@ -1,0 +1,102 @@
+#!/usr/bin/env perl
+
+=head1 NAME
+
+delete-owner - Delete existing owner entry
+
+=head1 SYNOPSIS
+
+delete-owner name
+
+=head1 COPYRIGHT AND DISCLAIMER
+
+(c) 2019 by Heinz Knutzen <heinz.knutzen@googlemail.com>
+
+http://hknutzen.github.com/Netspoc-API
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+=cut
+
+use strict;
+use warnings;
+use open qw(:std :utf8);
+use Pod::Usage;
+
+sub abort {
+    my (@args) = @_;
+    die "Error: ", @args, "\n";
+}
+
+####################################################################
+# Argument processing
+####################################################################
+
+# Make @ARGV utf-8.
+$_ = Encode::decode('UTF-8' , $_) for @ARGV;
+
+my $name = shift @ARGV or pod2usage(2);
+@ARGV and pod2usage(2);
+
+####################################################################
+# Main program
+####################################################################
+
+# Read to be changed lines from STDIN.
+my @lines = <>;
+
+# Number of current line.
+my $pos = 0;
+
+# First and last line of definition.
+my $start_pos;
+my $end_pos;
+
+# Find definition of to be deleted owner.
+# "=" must be located on same line.
+my $definition = "owner:$name";
+while ($pos < @lines) {
+    if ($lines[$pos] =~ /^ \s* $definition \s* =/x) {
+        $start_pos = $pos;
+        last;
+    }
+    $pos++;
+}
+if (not defined $start_pos) {
+    abort("Can't find $definition");
+}
+
+# Find "}" at end of definition
+while ($pos < @lines) {
+    if ($lines[$pos] =~ /^ [^#]* \} /x) {
+        $end_pos = $pos;
+        last;
+    }
+    $pos++;
+}
+if (not defined $end_pos) {
+    abort("Can't find terminating '}' of $definition");
+}
+
+# Split line, if terminating '}' is followed by other data,
+# but ignore trailing comment.
+if ($lines[$end_pos] =~ /^ (.+ \}) \s* ([^#] .*) $/x) {
+    my $prefix = $1;
+    my $trailing = $2;
+    splice(@lines, $end_pos, 1, "$prefix\n", "$trailing\n");
+}
+
+# Delete found definition.
+splice(@lines, $start_pos, $end_pos - $start_pos + 1);
+
+# Write changed lines to STDOUT.
+print @lines;

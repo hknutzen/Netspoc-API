@@ -48,9 +48,20 @@ get_params () {
     eval "$(jq -r ".params | @sh $query" $job)"
 }
 
+# Search file containing definition.
+# Store filename in $found.
+find_file () {
+    def=$1
+    # Collect filenames into array
+    found=($($EGREP -rl "^[[:space:]]*$def[[:space:]]*=" netspoc)) ||
+            abort "Can't find '$def' in netspoc"
+    [ ${#found[*]} -gt 1 ] &&
+        abort "Found multiple occurrences of '$def' in:" ${found[*]} ||
+            true
+}
 # Functions set global variables:
 # $found: filename that is to be processed
-# $filter: command line that reads from STDIN and writes to STDOUT
+# $args: arguments to $filter command
 create_host () {
     get_params network name ip owner mask
     if [ "$network" = '[auto]' ] ; then
@@ -77,18 +88,18 @@ create_host () {
             abort "Can't find network definition for 'ip = $net_addr' in $found"
          network=$(echo $network | cut -d: -f2)
     else
-        # Search files containing network definition
-        # and collect found filenames into array
-        found=($($EGREP -rl "^[[:space:]]*network:$network[[:space:]]*=" netspoc)) ||
-            abort "Can't find 'network:$network' in netspoc"
-        [ ${#found[*]} -gt 1 ] &&
-            abort "Found multiple occurrences of 'network:$network' in:" \
-                  ${found[*]}
+        find_file "network:$network"
     fi
-    filter="bin/create-host $network $name $ip"
+    args="$network $name $ip"
     if [ -n "$owner" ] ; then
-        filter="$filter $owner"
+        args="$args $owner"
     fi
+}
+
+change_host () {
+    get_params name owner
+    find_file "host:$name"
+    args="$name $owner"
 }
 
 create_owner () {
@@ -101,24 +112,27 @@ create_owner () {
             exit 0
         fi
     fi
-    filter="bin/create-owner $name $admins"
+    # Create owner regardless of existing one; this will result in error.
+    found=netspoc/owner
+    args="$name $admins"
     if [ "$watchers" != 'null' ] ; then
-        filter="$filter $watchers"
+        args="$args $watchers"
     fi
+}
+
+delete_owner () {
+    get_params name
+    find_file "owner:$name"
+    args="$name"
 }
 
 add_to_group () {
     get_params name object
-    # Search files containing group definition
-    # and collect found filenames into array
-    found=($($EGREP -rl "^[[:space:]]*group:$name[[:space:]]*=" netspoc)) ||
-            abort "Can't find 'group:$name' in netspoc"
-    [ ${#found[*]} -gt 1 ] &&
-        abort "Found multiple occurrences of 'group:$name' in:" ${found[*]}
-    filter="bin/add-to-group $name $object"
+    find_file "group:$name"
+    args="$name $object"
 }
 
-# Call this script recursively for each sub job
+# Call this script recursively for each sub-job
 multi_job () {
     local last=$(jq '.params | .jobs | length - 1' $job)
     for i in $(seq 0 $last) ; do
@@ -132,9 +146,12 @@ multi_job () {
 [ $# -eq 1 ] || abort $USAGE
 job=$1
 
+# Sets global variable $filter:
+# Command that reads from STDIN and writes to STDOUT.
 method=$(jq -r '.method' $job)
 case $method in
-    create_host|create_owner|add_to_group)
+    create_host|create_owner|delete_owner|add_to_group)
+        filter="bin/$(echo $method | sed 's/_/-/g')"
         $method
         ;;
     multi_job)
@@ -147,7 +164,8 @@ esac
 
 tmpfile=$(mktemp -p $HOME)
 trap "rm -f $tmpfile" EXIT
-$filter < $found > $tmpfile
+# Call filter with args on found file.
+$filter $args < $found > $tmpfile
 # Move tempfile to original file.
 chmod u+w $found
 mv $tmpfile $found
