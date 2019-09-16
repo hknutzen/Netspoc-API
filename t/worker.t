@@ -1305,6 +1305,85 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'Change owner of host, add and delete owner';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = {
+ ip = 10.1.1.0/24;
+ host:h1 = {
+  ip = 10.1.1.1;
+  owner = o1;
+ } host:h2 = { ip = 10.1.1.2; owner = o1; }
+}
+-- owner
+owner:o1 = { admins = a1@example.com; }
+END
+
+$job = {
+    method => 'multi_job',
+    params => {
+        jobs => [
+            {
+                method => 'create_owner',
+                params => {
+                    name     => 'o2',
+                    admins   => [ 'a2@example.com' ],
+                }
+            },
+            {
+                method => 'delete_owner',
+                params => {
+                    name     => 'o1',
+                }
+            },
+            {
+                method => 'modify_host',
+                params => {
+                    name    => 'h1',
+                    owner   => 'o2',
+                }
+            },
+            {
+                method => 'modify_host',
+                params => {
+                    name    => 'h2',
+                    owner   => 'o2',
+                }
+            }
+        ],
+    }
+};
+
+$out = <<'END';
+netspoc/owner
+@@ -1 +1,8 @@
+-owner:o1 = { admins = a1@example.com; }
++
++
++owner:o2 = {
++ admins =
++	a2@example.com,
++	;
++}
++
+netspoc/topology
+@@ -2,6 +2,7 @@
+  ip = 10.1.1.0/24;
+  host:h1 = {
+   ip = 10.1.1.1;
+-  owner = o1;
+- } host:h2 = { ip = 10.1.1.2; owner = o1; }
++  owner = o2;
++ }
++ host:h2 = { ip = 10.1.1.2; owner = o2; }
+ }
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
 $title = 'Job with malicous network name';
 ############################################################
 

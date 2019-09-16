@@ -93,7 +93,7 @@ create_host () {
     args=($network $name $ip $owner)
 }
 
-change_host () {
+modify_host () {
     get_params name owner
     find_file "host:$name"
     args=($name $owner)
@@ -152,7 +152,7 @@ job=$1
 # Command that reads from STDIN and writes to STDOUT.
 method=$(jq -r '.method' $job)
 case $method in
-    create_host|create_owner|modify_owner|delete_owner|add_to_group)
+    create_host|modify_host|create_owner|modify_owner|delete_owner|add_to_group)
         filter="bin/$(echo $method | sed 's/_/-/g')"
         $method
         ;;
