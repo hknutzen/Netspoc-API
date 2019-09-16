@@ -10,7 +10,10 @@ Netspoc configuration.
 * [Authentication](#authentication)
 * [Jobs](#jobs)
   * [create_host](#create_host)
+  * [modify_host](#modify_host)
   * [create_owner](#create_owner)
+  * [modify_owner](#modify_owner)
+  * [delete_owner](#delete_owner)
   * [add_to_group](#add_to_group)
   * [multi_job](#multi_job)
 
@@ -91,15 +94,16 @@ Parameters:
 #### modify_owner
 
 Modify existing owner.
-If attribute already exists, the new value replaces the old one.
-Use an empty array to remove existing value.
-To change only one attribute, leave the other parameter unspecified.
 
 Parameters:
 
 - name: Name of owner.
 - admins: Array of admins.
 - watchers: Array of watchers
+
+If attribute already exists, the new value replaces the old one.
+Use an empty array to remove existing value.
+To change only one attribute, leave the other parameter unspecified.
 
 #### delete_owner
 
