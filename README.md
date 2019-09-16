@@ -68,6 +68,14 @@ Parameters:
 If name of network is ```[auto]```, the network will be searched by IP
 address and mask. The job aborts if no or multiple networks with this IP/mask are found.
 
+#### modify_host
+
+Modify existing host.
+
+Parameters:
+
+- name: Name of host.
+- owner: Change or add owner of this host.
 
 #### create_owner
 
@@ -79,6 +87,27 @@ Parameters:
 - admins: Array of admins.
 - watchers: Array of watchers
 - ok_if_exists: If this attribute is set and this owner already exists, this job is silently ignored, but counts as succeeded in multi_job.
+
+#### modify_owner
+
+Modify existing owner.
+If attribute already exists, the new value replaces the old one.
+Use an empty array to remove existing value.
+To change only one attribute, leave the other parameter unspecified.
+
+Parameters:
+
+- name: Name of owner.
+- admins: Array of admins.
+- watchers: Array of watchers
+
+#### delete_owner
+
+Delete existing owner.
+
+Parameters:
+
+- name: Name of owner.
 
 #### add_to_group
 
