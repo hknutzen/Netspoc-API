@@ -1384,6 +1384,92 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'Change second of multiple ID-host';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = {
+ ip = 10.1.1.0/24;
+ host:id:a1@example.com = { ip = 10.1.1.1; owner = o1; }
+ host:id:a2@example.com = { ip = 10.1.1.2; owner = o2; }
+}
+network:n2 = {
+ ip = 10.1.2.0/24;
+ host:id:a1@example.com = { ip = 10.1.2.1; owner = o1; }
+ host:id:a2@example.com = { ip = 10.1.2.2; owner = o2; }
+}
+router:r1 = {
+ interface:n1;
+ interface:n2;
+}
+-- owner
+owner:o1 = { admins = a1@example.com; }
+owner:o2 = { admins = a2@example.com; }
+END
+
+$job = {
+    method => 'modify_host',
+    params => {
+        name    => 'id:a2@example.com.n2',
+        owner   => 'o1',
+    }
+};
+
+$out = <<'END';
+netspoc/topology
+@@ -6,7 +6,7 @@
+ network:n2 = {
+  ip = 10.1.2.0/24;
+  host:id:a1@example.com = { ip = 10.1.2.1; owner = o1; }
+- host:id:a2@example.com = { ip = 10.1.2.2; owner = o2; }
++ host:id:a2@example.com = { ip = 10.1.2.2; owner = o1; }
+ }
+ router:r1 = {
+  interface:n1;
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Must not change wrong ID-host';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = {
+ ip = 10.1.1.0/24;
+ host:id:a1@example.com
+ = { ip = 10.1.1.1; owner = o1; }
+}
+network:n2 = {
+ ip = 10.1.2.0/24;
+ host:id:a1@example.com = { ip = 10.1.2.1; owner = o1; }
+}
+router:r1 = {
+ interface:n1;
+ interface:n2;
+}
+-- owner
+owner:o1 = { admins = a1@example.com; }
+owner:o2 = { admins = a2@example.com; }
+END
+
+$job = {
+    method => 'modify_host',
+    params => {
+        name    => 'id:a1@example.com.n1',
+        owner   => 'o1',
+    }
+};
+
+$out = <<'END';
+Error: Can't find host:id:a1@example.com
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 $title = 'Job with malicous network name';
 ############################################################
 

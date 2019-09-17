@@ -95,7 +95,17 @@ create_host () {
 
 modify_host () {
     get_params name owner
-    find_file "host:$name"
+    case $name in
+        id:*)
+            # Name of ID-host isn't unique.
+            # Search for trailing name of network instead.
+            network=$(echo $name | sed 's/.*[.]\([^.]\+\)/\1/')
+            find_file "network:$network"
+            ;;
+        *)
+            find_file "host:$name"
+            ;;
+    esac
     args=($name $owner)
 }
 

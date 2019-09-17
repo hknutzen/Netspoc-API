@@ -55,6 +55,9 @@ my $owner = shift @ARGV // pod2usage(2);
 # Read to be changed lines from STDIN.
 my @lines = <>;
 
+# Search up to this line.
+my $end = @lines;
+
 # Number of current line.
 my $pos = 0;
 
@@ -62,11 +65,44 @@ my $pos = 0;
 my $start_pos;
 my $end_pos;
 
+# Special handling for ID-host:
+# - remove trailing network name from host name,
+# - set search position to start of corresponding network definition.
+# - limit search to end of network definition
+if (my ($host, $net) = $name =~ /^(id:.*)[.]([^.]+)$/) {
+    my $definition = "network:$net";
+    while ($pos < $end) {
+        if ($lines[$pos] =~ /^ \s* $definition \s* = /x) {
+            last;
+        }
+        $pos++;
+    }
+    my $start = $pos;
+    $name = $host;
+    if ($pos >= $end) {
+        abort("Can't find $definition");
+    }
+
+    # Find next toplevel definition or end of file.
+    $pos++;
+    while ($pos < $end) {
+        if ($lines[$pos] =~ /^ \s*
+       (network|router|any|group|area|service|owner|
+        protocol|protocolgroup|pathrestriction|isakmp|ipsec|crypto):/x)
+        {
+            last;
+        }
+        $pos++;
+    }
+    $end = $pos;
+    $pos = $start;
+}
+
 # Find definition of to be modified host.
 # "=" must be located on same line.
 my $definition = "host:$name";
-while ($pos < @lines) {
-    if ($lines[$pos] =~ /^ \s* $definition \s* =/x) {
+while ($pos < $end) {
+    if ($lines[$pos] =~ /^ \s* $definition \s* = /x) {
         $start_pos = $pos;
         last;
     }
@@ -78,7 +114,7 @@ if (not defined $start_pos) {
 
 # Find "}" at end of definition.
 # ToDo: NAT definition also has closing '}'.
-while ($pos < @lines) {
+while ($pos < $end) {
     if ($lines[$pos] =~ /^ [^#]* \} /x) {
         $end_pos = $pos;
         last;
