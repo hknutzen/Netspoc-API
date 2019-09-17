@@ -111,16 +111,23 @@ modify_host () {
 
 create_owner () {
     get_params name @admins @watchers ok_if_exists
-    found=netspoc/owner
+    case $name in
+        DA_TOKEN_*)
+            found=netspoc/owner-token
+            ;;
+        *)
+            found=netspoc/owner
+            ;;
+    esac
     if $EGREP -q "^[[:space:]]*owner:$name[[:space:]]*=" $found; then
         if [ -n "$ok_if_exists" ] ; then
 
             # Owner already exists, nothing to do
             exit 0
         fi
+        # else
+        # Create owner regardless of existing one; this would result in error.
     fi
-    # Create owner regardless of existing one; this will result in error.
-    found=netspoc/owner
     args=($name "$admins" "$watchers")
 }
 

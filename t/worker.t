@@ -1384,46 +1384,79 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
-$title = 'Change second of multiple ID-host';
+$title = 'Change owner at second of multiple ID-hosts';
 ############################################################
 
 $in = <<'END';
 -- topology
 network:n1 = {
  ip = 10.1.1.0/24;
- host:id:a1@example.com = { ip = 10.1.1.1; owner = o1; }
- host:id:a2@example.com = { ip = 10.1.1.2; owner = o2; }
+ host:id:a1@example.com = { ip = 10.1.1.1; owner = DA_TOKEN_o1; }
+ host:id:a2@example.com = { ip = 10.1.1.2; owner = DA_TOKEN_o1; }
 }
 network:n2 = {
  ip = 10.1.2.0/24;
- host:id:a1@example.com = { ip = 10.1.2.1; owner = o1; }
- host:id:a2@example.com = { ip = 10.1.2.2; owner = o2; }
+ host:id:a1@example.com = { ip = 10.1.2.1; owner = DA_TOKEN_o1; }
+ host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o2; }
 }
 router:r1 = {
  interface:n1;
  interface:n2;
 }
--- owner
-owner:o1 = { admins = a1@example.com; }
-owner:o2 = { admins = a2@example.com; }
+-- owner-token
+owner:DA_TOKEN_o1 = { admins = a1@example.com; }
+owner:DA_TOKEN_o2 = { admins = a2@example.com; }
 END
 
+
 $job = {
-    method => 'modify_host',
+    method => 'multi_job',
     params => {
-        name    => 'id:a2@example.com.n2',
-        owner   => 'o1',
+        jobs => [
+            {
+                method => 'modify_host',
+                params => {
+                    name    => 'id:a2@example.com.n2',
+                    owner   => 'DA_TOKEN_o3',
+                }
+            },
+            {
+                method => 'create_owner',
+                params => {
+                    name     => 'DA_TOKEN_o3',
+                    admins   => [ 'a3@example.com' ],
+                }
+            },
+            {
+                method => 'delete_owner',
+                params => {
+                    name     => 'DA_TOKEN_o2',
+                }
+            },
+        ]
     }
 };
 
 $out = <<'END';
+netspoc/owner-token
+@@ -1,2 +1,9 @@
+ owner:DA_TOKEN_o1 = { admins = a1@example.com; }
+-owner:DA_TOKEN_o2 = { admins = a2@example.com; }
++
++
++owner:DA_TOKEN_o3 = {
++ admins =
++	a3@example.com,
++	;
++}
++
 netspoc/topology
 @@ -6,7 +6,7 @@
  network:n2 = {
   ip = 10.1.2.0/24;
-  host:id:a1@example.com = { ip = 10.1.2.1; owner = o1; }
-- host:id:a2@example.com = { ip = 10.1.2.2; owner = o2; }
-+ host:id:a2@example.com = { ip = 10.1.2.2; owner = o1; }
+  host:id:a1@example.com = { ip = 10.1.2.1; owner = DA_TOKEN_o1; }
+- host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o2; }
++ host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o3; }
  }
  router:r1 = {
   interface:n1;
@@ -1444,15 +1477,15 @@ network:n1 = {
 }
 network:n2 = {
  ip = 10.1.2.0/24;
- host:id:a1@example.com = { ip = 10.1.2.1; owner = o1; }
+ host:id:a1@example.com = { ip = 10.1.2.1; owner = DA_TOKEN_o1; }
 }
 router:r1 = {
  interface:n1;
  interface:n2;
 }
--- owner
-owner:o1 = { admins = a1@example.com; }
-owner:o2 = { admins = a2@example.com; }
+-- owner-token
+owner:DA_TOKEN_o1 = { admins = a1@example.com; }
+owner:DA_TOKEN_o2 = { admins = a2@example.com; }
 END
 
 $job = {
