@@ -89,10 +89,10 @@ if (not defined $end_pos) {
 
 # Split line, if terminating '}' is followed by other data,
 # but ignore trailing comment.
-if ($lines[$end_pos] =~ /^ (.+ \}) \s* ([^#] .*) $/x) {
+if ($lines[$end_pos] =~ /^ (.+ \}) \s* ([^#\s] .*) $/x) {
     my $prefix = $1;
     my $trailing = $2;
-    splice(@lines, $end_pos, 1, "$prefix\n", "$trailing\n");
+    splice(@lines, $end_pos, 1, "$prefix\n", "$trailing");
 }
 
 # Delete found definition.

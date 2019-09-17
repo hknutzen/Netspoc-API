@@ -1390,10 +1390,8 @@ $job = {
 
 $out = <<'END';
 netspoc/owner
-@@ -1 +1,8 @@
+@@ -1 +1,6 @@
 -owner:o1 = { admins = a1@example.com; }
-+
-+
 +owner:o2 = {
 + admins =
 +	a2@example.com,
@@ -1471,11 +1469,9 @@ $job = {
 
 $out = <<'END';
 netspoc/owner-token
-@@ -1,2 +1,9 @@
+@@ -1,2 +1,7 @@
  owner:DA_TOKEN_o1 = { admins = a1@example.com; }
 -owner:DA_TOKEN_o2 = { admins = a2@example.com; }
-+
-+
 +owner:DA_TOKEN_o3 = {
 + admins =
 +	a3@example.com,
