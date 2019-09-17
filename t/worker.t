@@ -602,6 +602,38 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'Modify owner, defined in one line';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; owner = a; }
+owner:a = { admins = a@example.com; }
+END
+
+$job = {
+    method => 'modify_owner',
+    params => {
+        name => 'a',
+        admins => [ 'c@example.com' ]
+    }
+};
+
+$out = <<'END';
+netspoc/topology
+@@ -1,2 +1,6 @@
+ network:n1 = { ip = 10.1.1.0/24; owner = a; }
+-owner:a = { admins = a@example.com; }
++owner:a = {
++ admins =
++	c@example.com,
++	;
++}
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
 $title = 'Modify owner: multiple attributes in one line';
 ############################################################
 
@@ -1416,21 +1448,21 @@ $job = {
             {
                 method => 'modify_host',
                 params => {
-                    name    => 'id:a2@example.com.n2',
-                    owner   => 'DA_TOKEN_o3',
+                    name  => 'id:a2@example.com.n2',
+                    owner => 'DA_TOKEN_o3',
                 }
             },
             {
                 method => 'create_owner',
                 params => {
-                    name     => 'DA_TOKEN_o3',
-                    admins   => [ 'a3@example.com' ],
+                    name   => 'DA_TOKEN_o3',
+                    admins => [ 'a3@example.com' ],
                 }
             },
             {
                 method => 'delete_owner',
                 params => {
-                    name     => 'DA_TOKEN_o2',
+                    name => 'DA_TOKEN_o2',
                 }
             },
         ]

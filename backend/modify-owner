@@ -126,7 +126,16 @@ sub find_attr {
     my ($attr) = @_;
     $pos = $start_pos;
     while ($pos < $end_pos) {
-        if ($lines[$pos] =~ /^ \s* $attr \s* = /x) {
+        if (my ($prefix, $rest)
+            = $lines[$pos] =~ /^ ([^#]*?) (\s* $attr \s* = .*) $/x)
+        {
+
+            # Split line, if attribute is prefixed by some other code.
+            if ($prefix =~ /\S/) {
+                splice(@lines, $pos, 1, "$prefix\n", "$rest\n");
+                $end_pos++;
+                $pos++;
+            }
             return $pos;
         }
         $pos++;
