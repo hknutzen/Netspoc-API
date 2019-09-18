@@ -157,7 +157,9 @@ multi_job () {
     for i in $(seq 0 $last) ; do
         local subjob="$job-$i"
         jq ".params | .jobs[$i]" $job > $subjob
+        trap "rm -f $subjob" EXIT
         $0 $subjob
+        rm -f $subjob
     done
 }
 
