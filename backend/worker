@@ -41,11 +41,9 @@ get_params () {
                 q=".$i | values"
                 ;;
         esac
-        [ -n "$query" ] && query="$query, "
-        query="$query\"$i=\($q)\""
+        eval "$(jq -r ".params | @sh \"$i=\($q)\"" $job)"
     done
 
-    eval "$(jq -r ".params | @sh $query" $job)"
 }
 
 # Search file containing definition.

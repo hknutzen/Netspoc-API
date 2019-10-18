@@ -1553,4 +1553,38 @@ END
 test_err($title, $in, $job, $out);
 
 ############################################################
+$title = 'Job with whitespace in email address';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.1.1.0/24; }
+-- owner
+owner:a = { admins = a@example.com; }
+END
+
+$job = {
+    method => 'modify_owner',
+    params => {
+        admins => ['b example.com'],
+        name => 'a'
+    }
+};
+
+$out = <<'END';
+Syntax error: Comma expected in list of values at line 3 of netspoc/owner, near "example.com<--HERE-->,"
+---
+netspoc/owner
+@@ -1 +1,5 @@
+-owner:a = { admins = a@example.com; }
++owner:a = {
++ admins =
++	b example.com,
++	;
++}
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 done_testing;
