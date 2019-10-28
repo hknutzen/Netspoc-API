@@ -17,6 +17,7 @@ GROUP=users
 # Needed to find ~/config
 HOME=$(getent passwd $USER | cut -d: -f6)
 PSGI=$HOME/bin/api.psgi
+PATH=/usr/local/bin:$PATH
 IP=127.0.0.1
 PORT=5002
 WORKER=5
@@ -26,7 +27,7 @@ PIDFILE=/var/run/$USER.pid
 
 case $1 in
   start)
-      /usr/local/bin/starman \
+      starman \
           -l $IP:$PORT \
           -D \
           --pid $PIDFILE \
