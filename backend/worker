@@ -63,9 +63,11 @@ find_file () {
 create_host () {
     get_params network name ip owner mask
     if [ "$network" = '[auto]' ] ; then
+        local net_addr
+        local pattern
         # Convert host IP and mask to network IP/prefixlen.
-        local net_addr=$(bin/net-addr $ip $mask)
-        local pattern=$(echo $net_addr | sed 's/[.]/\\./g')
+        net_addr=$(bin/net-addr $ip $mask)
+        pattern=$(echo $net_addr | sed 's/[.]/\\./g')
         pattern="^[^#]*ip[[:space:]]*=[[:space:]]*$pattern"
         # Search files containing IP pattern
         # and collect found filenames into array

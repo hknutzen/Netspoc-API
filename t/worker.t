@@ -1058,6 +1058,81 @@ END
 test_err($title, $in, $job, $out);
 
 ############################################################
+$title = 'Add host, no IP address found';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.1.0.0/21; }
+END
+
+$job = {
+    method => 'create_host',
+    params => {
+        network => '[auto]',
+        name    => 'name_10_1_1_4',
+        ip      => '10.1.0.*',
+        mask    => '255.255.248.0',
+    }
+};
+
+$out = <<'END';
+Error: IP address expected: '10.1.0.*'
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Add host, invalid IP address';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.1.0.0/21; }
+END
+
+$job = {
+    method => 'create_host',
+    params => {
+        network => '[auto]',
+        name    => 'name_10_1_1_4',
+        ip      => '10.1.0.444',
+        mask    => '255.255.248.0',
+    }
+};
+
+$out = <<'END';
+Error: Invalid IP address: '10.1.0.444'
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Add host, invalid IP mask';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.1.0.0/21; }
+END
+
+$job = {
+    method => 'create_host',
+    params => {
+        network => '[auto]',
+        name    => 'name_10_1_1_4',
+        ip      => '10.1.0.4',
+        mask    => '123.255.248.0',
+    }
+};
+
+$out = <<'END';
+Error: Invalid IP mask: '123.255.248.0'
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 $title = 'Add host [auto]';
 ############################################################
 

@@ -3,13 +3,16 @@
 use strict;
 use warnings;
 
+sub abort {
+    die "Error: ", @_, "\n";
+}
 sub ip2bitstr {
     my ($ip) = @_;
     $ip //= '';
     $ip =~ m/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/a or
-        die("IP address expected: '$ip'\n");
+        abort("IP address expected: '$ip'");
     if ($1 > 255 or $2 > 255 or $3 > 255 or $4 > 255) {
-        die("Invalid IP address: '$ip'\n");
+        abort("Invalid IP address: '$ip'");
     }
     return pack 'C4', $1, $2, $3, $4;
 }
@@ -20,15 +23,18 @@ sub bitstr2ip {
 
 # Convert mask to prefix ranging from 0 to 32.
 sub bitstr2prefix {
-    my ($mask) = @_;
-    my $prefix = 0;
-    my $zero = pack('N', 0x00000000);
+    my ($check) = @_;
+    my $mask = pack('N', 0x00000000);
     my $bit = 0x80000000;
-    while ($zero ne ($mask & pack('N', $bit))) {
+    for my $prefix (0 .. 32) {
+        if ($check eq $mask) {
+            return $prefix;
+        }
+        $mask |= pack('N', $bit);
         $bit /= 2;
-        $prefix++;
     }
-    return $prefix;
+    my $ip = bitstr2ip($check);
+    abort("Invalid IP mask: '$ip'");
 }
 
 my ($ip, $mask) = @ARGV;
