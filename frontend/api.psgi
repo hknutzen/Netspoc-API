@@ -32,6 +32,7 @@ use Plack::Response;
 use IPC::Run3;
 use Digest::SHA qw/sha256_hex/;
 use Crypt::SaltedHash;
+use Net::LDAP;
 
 # JSON file with
 # either
