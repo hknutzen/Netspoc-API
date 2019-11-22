@@ -27,7 +27,7 @@ Netspoc-API processes jobs asyncronously. After posting a job to
 The status of a job is requested by posting ```{ "id" : <job-id> }``` to
 ```http:SERVER/job-status```.
 This results in JSON data with attribute ```status``` and optional
-```msg```.
+```message```.
 
 Status is one of:
 
@@ -35,7 +35,7 @@ Status is one of:
 - INPROGRESS, processing of job has started.
 - FINISHED, processing of job has finished without errors.
 - ERROR, job has finished with errors; no changes have been made.
-         The error message can be found in attribute ```msg```.
+         The error message can be found in attribute ```message```.
 - UNKNOWN, job is not or no longer known.
 - DENIED, access denied, job was queued by some other user.
 
