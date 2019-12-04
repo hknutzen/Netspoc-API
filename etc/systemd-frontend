@@ -1,0 +1,17 @@
+[Unit]
+Description=frontend of Netspoc-API
+Before=multi-user.target graphical.target
+After=network-online.target
+
+[Service]
+User=netspoc-api
+# Change to '--keepalive 0', if mod_proxy is used.
+ExecStart=/usr/local/bin/starman \
+          -l 127.0.0.1:5002 \
+          --workers 5 \
+          --keepalive 0 \
+          /data/netspoc-api/bin/api.psgi
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
