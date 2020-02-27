@@ -16,7 +16,7 @@ while true; do
         break;
     fi
     # Try again if Up-to-date check failed,
-    # i.e. both givven messages are ignored.
+    # i.e. both given messages are ignored.
     # Don't check for exact name of "cvs" command in message,
     # because cvs command may have been changed by $CVS_Server.
     if [ -n "$(cat err | egrep -v '^[^ ]+ commit: Up-to-date check failed for|^[^ ]+ \[commit aborted\]: correct above errors first!$')" ] ; then
