@@ -6,11 +6,11 @@ create-owner - Create new owner entry
 
 =head1 SYNOPSIS
 
-create-host owner-name admin,admin,... [watcher,...]
+create-owner owner-name admin,... [watcher,...]
 
 =head1 COPYRIGHT AND DISCLAIMER
 
-(c) 2019 by Heinz Knutzen <heinz.knutzen@googlemail.com>
+(c) 2020 by Heinz Knutzen <heinz.knutzen@googlemail.com>
 
 http://hknutzen.github.com/Netspoc-API
 
