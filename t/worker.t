@@ -302,6 +302,103 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'Add before first element located on first line';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h_10_1_1_4 = { ip = 10.1.1.4; }
+ host:h_10_1_1_5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- group
+group:g1 = host:h_10_1_1_5; # Comment
+-- service
+service:s1 = {
+ user = group:g1;
+ permit src = user; dst = network:n2; prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'add_to_group',
+    params => {
+        name   => 'g1',
+        object => 'host:h_10_1_1_4',
+    }
+};
+
+$out = <<'END';
+netspoc/group
+@@ -1 +1,4 @@
+-group:g1 = host:h_10_1_1_5; # Comment
++group:g1 =
++ host:h_10_1_1_4,
++ host:h_10_1_1_5, # Comment
++;
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Group having description ending with ";"';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+ interface:n3 = { ip = 10.1.3.1; hardware = n3; }
+}
+
+network:n3 = { ip = 10.1.3.0/24; }
+-- group
+group:g1 =
+ description = Some text;
+ network:n1,
+;
+-- service
+service:s1 = {
+ user = group:g1;
+ permit src = user; dst = network:n3; prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'add_to_group',
+    params => {
+        name   => 'g1',
+        object => 'network:n2',
+    }
+};
+
+$out = <<'END';
+netspoc/group
+@@ -1,4 +1,5 @@
+ group:g1 =
+  description = Some text;
+  network:n1,
++ network:n2,
+ ;
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
 $title = 'Add to empty group';
 ############################################################
 
@@ -318,7 +415,7 @@ router:r1 = {
 
 network:n2 = { ip = 10.1.2.0/24; }
 -- group
-group:g1 = ;
+group:g1 = ; # Comment
 -- service
 service:s1 = {
  user = group:g1;
@@ -337,8 +434,8 @@ $job = {
 $out = <<'END';
 netspoc/group
 @@ -1 +1,3 @@
--group:g1 = ;
-+group:g1 =
+-group:g1 = ; # Comment
++group:g1 = # Comment
 + host:h4,
 +;
 END

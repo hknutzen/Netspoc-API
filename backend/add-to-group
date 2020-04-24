@@ -83,15 +83,39 @@ my $end_pos;
 
 # Find definition of to be changed group.
 # "=" must be located on same line.
+my $definition = "group:$group_name";
 while ($pos < @lines) {
-    if ($lines[$pos] =~ /^ \s* group:$group_name \s* =/x) {
+    if ($lines[$pos] =~ /^ \s* $definition \s* =/x) {
         $start_pos = $pos;
         last;
     }
     $pos++;
 }
 if (not defined $start_pos) {
-    abort("Can't find group:$group_name");
+    abort("Can't find $definition");
+}
+
+# Split line, if definition is followed by some content other than comment.
+# Leave comment at first part if empty group.
+if ($lines[$pos] =~ /^ (\s* $definition \s* =) \s* ([^\n]+?) (\s*[#].*)? $/x) {
+    my $def = $1;
+    my $cont = $2;
+    my $comment = $3 ||'';
+    if ($cont =~ /^;/) {
+        $def .= $comment;
+    }
+    else {
+        $cont = " $cont$comment"
+    }
+    splice(@lines, $pos, 1, "$def\n", "$cont\n");
+    $end_pos++;
+}
+$pos++;
+
+# Ignore description
+if ($pos < @lines && $lines[$pos] =~ /^ \s* description \s* =/x) {
+    $pos++;
+    $start_pos++;
 }
 
 # Find end of group.
@@ -103,7 +127,7 @@ while ($pos < @lines) {
     $pos++;
 }
 if (not defined $end_pos) {
-    abort("Can't find terminating ';' of group:$group_name");
+    abort("Can't find terminating ';' of $definition");
 }
 
 # Split line, if terminating ';' isn't located on separate line.
@@ -122,7 +146,7 @@ if ($lines[$pos] =~ /^ (.+?) \s* (; [^\n]*? ) (\s*[#].*)? $/x) {
 }
 
 # Search $pos, where to insert new object.
-# - Identical typed objects are place together.
+# - Identical typed objects are placed together.
 #   Possibly, block of networks is placed before block of hosts.
 # - Use IP address contained in name for comparing.
 # Insert before next larger object.
