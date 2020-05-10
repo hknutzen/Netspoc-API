@@ -1509,6 +1509,46 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'multi_job: second job fails';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+END
+
+$job = {
+    method => 'multi_job',
+    params => {
+        jobs => [
+            {
+                method => 'create_host',
+                params => {
+                    network => 'n1',
+                    name    => 'name_10_1_1_4',
+                    ip      => '10.1.1.4',
+                }
+            },
+            {
+                method => 'create_host',
+                params => {
+                    network => 'n2',
+                    name    => 'name_10_1_2_4',
+                    ip      => '10.1.2.4',
+                }
+            }
+        ],
+        crq => 'CRQ00001234',
+    }
+};
+
+$out = <<'END';
+Error: Can't find 'network:n2' in netspoc
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 $title = 'Change owner of host, add and delete owner';
 ############################################################
 
