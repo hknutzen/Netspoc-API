@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# Process job for Netspoc-API
-USAGE="Usage: $0 FILE"
+# Process jobs for Netspoc-API
+USAGE="Usage: $0 FILE ..."
 
-# - Get name of job file as argument,
+# Gets names of job files as argument.
+# For each job do:
 # - read method and params from job
 # - find to be processed netspoc file
 # - call filter with found file as STDIN, writing changed content to STDOUT
@@ -38,7 +39,7 @@ get_params () {
                 q=".$i | if . then . | join(\",\") else . end"
                 ;;
             *)
-                q=".$i | values"
+                q=".$i // \"\""
                 ;;
         esac
         eval "$(jq -r ".params | @sh \"$i=\($q)\"" $job)"
@@ -151,43 +152,51 @@ add_to_group () {
     args=($name $object)
 }
 
-# Call this script recursively for each sub-job
+# Call do_job for each sub-job.
+# Also stops on first error.
 multi_job () {
     local last=$(jq '.params | .jobs | length - 1' $job)
     for i in $(seq 0 $last) ; do
         local subjob="$job-$i"
         jq ".params | .jobs[$i]" $job > $subjob
         trap "rm -f $subjob" EXIT
-        $0 $subjob
+        do_job $subjob
         rm -f $subjob
     done
 }
 
+do_job () {
+    local job=$1
 
-[ $# -eq 1 ] || abort $USAGE
-job=$1
+    # Sets global variable $filter:
+    # Command that reads from STDIN and writes to STDOUT.
+    method=$(jq -r '.method' $job)
+    case $method in
+        create_host|modify_host|create_owner|modify_owner|delete_owner|add_to_group)
+            filter="bin/$(echo $method | sed 's/_/-/g')"
+            $method
+            ;;
+        multi_job)
+            $method
+            exit 0
+            ;;
+        *)
+            abort "Unknown method '$method'"
+    esac
 
-# Sets global variable $filter:
-# Command that reads from STDIN and writes to STDOUT.
-method=$(jq -r '.method' $job)
-case $method in
-    create_host|modify_host|create_owner|modify_owner|delete_owner|add_to_group)
-        filter="bin/$(echo $method | sed 's/_/-/g')"
-        $method
-        ;;
-    multi_job)
-        $method
-        exit 0
-        ;;
-    *)
-        abort "Unknown method '$method'"
-esac
+    tmpfile=$(mktemp -p $HOME)
+    trap "rm -f $tmpfile" EXIT
+    # Call filter with args on found file.
+    $filter "${args[@]}" < $found > $tmpfile
+    # Move tempfile to original file.
+    chmod u+w $found
+    mv $tmpfile $found
+    chmod go+r $found
+}
 
-tmpfile=$(mktemp -p $HOME)
-trap "rm -f $tmpfile" EXIT
-# Call filter with args on found file.
-$filter "${args[@]}" < $found > $tmpfile
-# Move tempfile to original file.
-chmod u+w $found
-mv $tmpfile $found
-chmod go+r $found
+# Apply all jobs one after each other to netspoc directory.
+# Abort on first error.
+while [ $# -gt 0 ] ; do
+    do_job $1
+    shift
+done

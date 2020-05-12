@@ -223,11 +223,80 @@ sub check_log {
     system("rm $file; touch $file");
 }
 
+sub check_cvs_log {
+    my ($file, $expected, $title) = @_;
+    local $ENV{HOME} = $backend;
+    chdir;
+    my $log = `
+cvs -q log netspoc/$file |
+egrep -v '^branches:|^date|revision 1[.]1' |
+egrep -A1 '^revision'`;
+    eq_or_diff($log, $expected, $title);
+}
+
 setup_frontend();
 setup_www();
 setup_backend();
 system("touch $backend/log");
 setup_netspoc($backend, <<'END');
+-- topology
+network:a = { ip = 10.1.1.0/24; } # Comment
+END
+
+my $id;
+
+sub add_host {
+    my ($i) = @_;
+    $id = add_job({
+        method => 'create_host',
+        params => {
+            network => 'a',
+            name    => "name_10_1_1_$i",
+            ip      => "10.1.1.$i",
+            crq     => "CRQ0000$i",
+        },
+                  });
+}
+
+for my $i (1 .. 7) {
+    add_host($i)
+}
+
+my $pid = start_queue();
+wait_job($id);
+check_cvs_log('topology', <<'EOF', 'Multiple files in one CVS commit');
+revision 1.2
+API: CRQ00001,CRQ00002,CRQ00003,CRQ00004,CRQ00005,CRQ00006,CRQ00007
+EOF
+
+stop_queue($pid);
+for my $i (8 .. 12) {
+    add_host($i)
+}
+add_host(12); # Duplicate IP
+for my $i (13 .. 14) {
+    add_host($i)
+}
+$pid = start_queue();
+
+wait_job($id);
+check_cvs_log('topology', <<'EOF', 'Multiple files with one error');
+revision 1.5
+API: CRQ000013,CRQ000014
+--
+revision 1.4
+API: CRQ000012
+--
+revision 1.3
+API: CRQ000010,CRQ000011,CRQ00008,CRQ00009
+--
+revision 1.2
+API: CRQ00001,CRQ00002,CRQ00003,CRQ00004,CRQ00005,CRQ00006,CRQ00007
+EOF
+
+# Fresh start with cleaned up topology and stopped queue.
+stop_queue($pid);
+change_netspoc(<<'END');
 -- topology
 network:a = { ip = 10.1.1.0/24; } # Comment
 END
@@ -243,12 +312,15 @@ my $job = {
 };
 
 my $id1 = add_job($job);
+
+# Add identical job, will fail
 my $id2 = www_add_job({ %$job, user => 'test', pass => 'test', });
 
 check_status($id1, 'WAITING', 'Job 1 waiting, no worker');
 check_status($id2, 'WAITING', 'Job 2 waiting, no worker');
 
-my $pid = start_queue();
+$pid = start_queue();
+sleep 1;
 
 my $id3 = add_job({
     method => 'create_host',
@@ -263,11 +335,15 @@ my $id3 = add_job({
     });
 
 check_status($id1, 'INPROGRESS', 'Job 1 in progress');
-check_status($id2, 'WAITING', 'Job 2 still waiting');
+check_status($id2, 'INPROGRESS', 'Job 2 in progress');
 check_status($id3, 'WAITING', 'New job 3 waiting');
 check_status(99, 'UNKNOWN', 'Unknown job 99');
 
 wait_job($id3);
+
+www_check_status(
+    { id => $id1, user => 'test', pass => 'test' },
+    'DENIED', 'Can\'t access job 1 from WWW');
 
 check_status($id1, 'FINISHED', 'Job 1 success');
 www_check_status(
@@ -291,7 +367,7 @@ change_netspoc(<<'END');
 -- topology
 network:a = { ip = 10.1.1.0/24; }  BAD SYNTAX
 END
-my $id = add_job($job);
+$id = add_job($job);
 sleep 1;
 check_status($id, 'INPROGRESS', 'Wait on bad repository');
 sleep 2;

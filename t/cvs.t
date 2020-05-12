@@ -37,10 +37,19 @@ sub test_worker {
 
     setup_netspoc($home_dir, $in);
 
-    write_file('job', encode_json($job));
+    if (ref $job eq 'ARRAY') {
+        my $i = 1;
+        for my $j (@$job) {
+            write_file("job$i", encode_json($j));
+            $i++;
+        }
+    }
+    else {
+        write_file('job', encode_json($job));
+    }
 
     # Checkout files from CVS, apply changes and run Netspoc.
-    my ($success, $stderr) = run('bin/cvs-worker1 job');
+    my ($success, $stderr) = run('bin/cvs-worker1 job*');
 
     if (not $success and (not $stderr or $stderr !~ /^Netspoc/)) {
         return ($success, $stderr);
@@ -74,7 +83,7 @@ sub test_worker {
     }
 
     # Try to check in changes.
-    ($success, $stderr) = run('bin/cvs-worker2 job');
+    ($success, $stderr) = run('bin/cvs-worker2 job*');
     $success or $diff = $stderr;
 
     if (my $file = $named{cvs_log}) {
@@ -318,6 +327,92 @@ netspoc/topology
 ---
 revision 1.2
 API: CRQ00001234
+--
+revision 1.1
+Initial revision
+--
+revision 1.1.1.1
+start
+END
+
+test_run($title, $in, $job, $out, cvs_log => 'owner');
+
+############################################################
+$title = 'Process multiple jobs at once, handle CRQs';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+-- owner
+# Add owners below.
+END
+
+$job =
+    [
+      {
+          method => 'create_owner',
+          params => {
+              name     => 'a',
+              admins   => [ 'a@example.com' ],
+              crq => 'CRQ00001236',
+          },
+      },
+      {
+          method => 'create_host',
+          params => {
+              network => 'n1',
+              name    => 'name_10_1_1_4',
+              ip      => '10.1.1.4',
+              owner   => 'a',
+              crq => 'CRQ00001234',
+          },
+
+      },
+      {
+          method => 'create_host',
+          params => {
+              network => 'n1',
+              name    => 'name_10_1_1_5',
+              ip      => '10.1.1.5',
+              # Without CRQ
+          },
+
+      },
+      {
+          method => 'create_host',
+          params => {
+              network => 'n1',
+              name    => 'name_10_1_1_6',
+              ip      => '10.1.1.6',
+              owner   => 'a',
+              crq => 'CRQ00001236',
+          },
+
+      }
+    ];
+
+$out = <<'END';
+netspoc/owner
+@@ -1 +1,7 @@
+ # Add owners below.
++owner:a = {
++ admins =
++	a@example.com,
++	;
++}
++
+netspoc/topology
+@@ -1 +1,5 @@
+-network:n1 = { ip = 10.1.1.0/24; }
++network:n1 = { ip = 10.1.1.0/24;
++ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
++ host:name_10_1_1_5			= { ip = 10.1.1.5; }
++ host:name_10_1_1_6			= { ip = 10.1.1.6; owner = a; }
++}
+---
+revision 1.2
+API: CRQ00001234,CRQ00001236
 --
 revision 1.1
 Initial revision

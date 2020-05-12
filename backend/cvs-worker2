@@ -5,8 +5,10 @@
 # Abort on each error
 set -e
 
-JOB=$1
-MSG="API: $(jq -r '.params | .crq' $JOB)"
+# Get CRQs from all jobs given as arguments.
+CRQ=$(jq -r '.params | .crq | values' $* | sort -u | paste -s -d,)
+MSG=API
+[ -n "$CRQ" ] && MSG="$MSG: $CRQ"
 
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 

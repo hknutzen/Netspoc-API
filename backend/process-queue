@@ -58,13 +58,13 @@ retry () {
     done
 }
 
-# Wait for next job on remote server,
-# move it from "waiting" to "inprogress",
-# copy job to "inprogress" on local server,
-# set global variable INPROGRESS to "inprogress/job-id".
-get-job () {
+# Wait for new jobs on remote server,
+# move them from "waiting" to "inprogress",
+# copy jobs to "inprogress" on local server.
+get-jobs () {
+    local JOBS
     while true; do
-        INPROGRESS=$(ssh -q $REMOTE <<'EOF' 2>err
+        JOBS=$(ssh -q $REMOTE <<'EOF' 2>err
 # Execute on remote server.
 # Abort on every error.
 set -e
@@ -72,26 +72,21 @@ mkdir -p waiting inprogress finished result tmp
 
 while true; do
 
-    # Look for stale job in directory "inprogress".
-    # Check "inprogress" inside loop, because a copy of this script
-    # (started by ssh) may still be running, if outer script was restarted.
-    JOB=$(ls -rt inprogress | head -n1)
-    if [ -z "$JOB" ] ; then
+    # Move new jobs from directory "waiting" to "inprogress".
+    for f in $(ls waiting); do
+       mv waiting/$f inprogress/$f
+    done
 
-        # Wait for jobs appearing in directory "waiting".
-        # Take oldest job: first element of list
-        JOB=$(ls -rt waiting | head -n1)
-        if [ -n "$JOB" ] ; then
-            # Found job, move from "waiting" to "inprogress".
-            mv waiting/$JOB inprogress/$JOB
-        fi
-    fi
-    if [ -n "$JOB" ] ; then
-        # Announce found file on STDOUT.
-        echo inprogress/$JOB
+    # Look again, adding stale jobs in directory "inprogress".
+    # Show old jobs first.
+    JOBS=$(ls -rt inprogress)
+
+    if [ -n "$JOBS" ] ; then
+        # Announce found files to STDOUT.
+        echo $JOBS
         exit
     fi
-    # No job found, wait and check again
+    # No jobs found, wait and check again
     sleep 1
 done
 EOF
@@ -101,53 +96,103 @@ EOF
         status-ok ssh-get
         break
     done
-    local JOB=$(basename $INPROGRESS)
-    local TMP=tmp/$JOB
-    retry "scp -q $REMOTE:$INPROGRESS $TMP" scp-get
-    mv $TMP $INPROGRESS
+    for JOB in $JOBS; do
+        local FILE="inprogress/$JOB"
+        local TMP=tmp/$JOB
+        retry "scp -q $REMOTE:$FILE $TMP" scp-get
+        mv $TMP $FILE
+    done
 }
 
-# Move result/job-id to remote server: result/job-id
-# Remove inprogress/job-id locally and move to finished/ at remote server.
+# Process finished jobs in "result/":
+# - Move job from result/job-id to remote server: result/job-id
+# - Remove inprogress/job-id locally and
+# - at remote server move inprogress/job-id to finished/job-id.
 mark-finished () {
-    local JOB=$1
-    local RESULT=result/$JOB
-    local TMP=tmp/$JOB
-    local INPROGRESS=inprogress/$JOB
-    local FINISHED=finished/$JOB
-    retry "scp -q $RESULT $REMOTE:$TMP" scp-put
-    retry "ssh -q $REMOTE mv $TMP $RESULT" ssh-mv-result
+    for JOB in $(ls -rt result/) ; do
+        local RESULT=result/$JOB
+        local TMP=tmp/$JOB
+        local INPROGRESS=inprogress/$JOB
+        local FINISHED=finished/$JOB
+        retry "scp -q $RESULT $REMOTE:$TMP" scp-put
+        retry "ssh -q $REMOTE mv $TMP $RESULT" ssh-mv-result
 
-    # Ignore error if file was already moved before,
-    # but still retry, if ssh fails.
-    retry "ssh -q $REMOTE mv $INPROGRESS $FINISHED || true" ssh-mv-job
-    rm $RESULT
-    rm -f $INPROGRESS
+        # Ignore error if file was already moved before,
+        # but still retry, if ssh fails.
+        retry "ssh -q $REMOTE mv $INPROGRESS $FINISHED || true" ssh-mv-job
+        rm $RESULT
+        rm -f $INPROGRESS
+    done
+}
+
+process () {
+
+    # $1 is exist status from processing of first half of jobs.
+    # If this succeeded then processing of second half would fail anyway,
+    # if we already know, that an error will occur.
+    local WILL_FAIL
+    [ $1 -eq 0 ] && WILL_FAIL=1
+
+    # Other arguments are filenames of to be processed jobs.
+    shift
+
+    if [ -z "$WILL_FAIL" -o $# -eq 1 ] ; then
+
+        # Apply worker to one or more jobs.
+        # Store errors in $STATUS.
+        # $STATUS is emtpy on success.
+        STATUS=tmp/worker
+        $WORKER $* 2>$STATUS ||
+            grep -q '[^[:space:]]' $STATUS ||
+            echo "Unknown error" > $STATUS
+
+        # On success or if only one job was processed,
+        # copy $STATUS to directory "result/",
+        # one copy for each job.
+        [ ! -s $STATUS ]
+        local SUCCESS=$?
+        if [ $SUCCESS -eq 0 -o $# -eq 1 ] ; then
+            for f in $*; do
+                JOB=$(basename $f)
+                cp $STATUS result/$JOB
+            done
+            [ $SUCCESS -eq 0 ]	# Return status.
+            return
+        fi
+    fi
+
+    # An error occurred while multiple jobs have been processed.
+    # To find out which job caused the error, recursively process jobs
+    # again in two chunks with half the number of jobs.
+    local -a H1 H2
+    local half=$(($#/2))
+    local i=0
+    for JOB in $*; do
+        if [ $i -lt $half ]; then
+            H1+=($JOB)
+        else
+            H2+=($JOB)
+        fi
+        ((i++))
+    done
+    process 1 ${H1[*]}
+    local SUCCESS=$?
+    process $SUCCESS ${H2[*]}
+    [ $? -eq 0 -a $SUCCESS -eq 0 ]	# Return status.
+    return
 }
 
 mkdir -p inprogress result status tmp
 while true; do
 
-    # Read job names.
-    # Only one name expected and only process first found job.
-    RESULT=$(ls result | head -n1)
-    if [ -z "$RESULT" ] ; then
-        INPROGRESS=$(ls inprogress | head -n1)
-        if [ -z "$INPROGRESS" ] ; then
-            # Wait for next job, set global variable INPROGRESS.
-            get-job
-        fi
-        JOB=$(basename $INPROGRESS)
-        RESULT=result/$JOB
-        TMP=tmp/$JOB
-        # Store errors in $RESULT.
-        # File is emtpy on success.
-        $WORKER $INPROGRESS 2>$TMP ||
-            grep -q '[^[:space:]]' $TMP ||
-            echo "Unknown error" > $TMP
-        mv $TMP $RESULT
-    else
-        JOB=$(basename $INPROGRESS)
+    # Process results from below or
+    # leftover results from previous run, if script was interrupted.
+    mark-finished
+
+    # Wait for new jobs if directory "inprogress/" is empty
+    if [ -z "$(ls inprogress)" ] ; then
+        get-jobs
     fi
-    mark-finished $JOB
+
+    process 1 $(ls -rt inprogress/*)
 done
