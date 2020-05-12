@@ -127,9 +127,9 @@ mark-finished () {
 
 process () {
 
-    # $1 is exist status from processing of first half of jobs.
+    # $1 is exit status from processing of first half of jobs.
     # If this succeeded then processing of second half would fail anyway,
-    # if we already know, that an error will occur.
+    # if we already know, that some job has errors.
     local WILL_FAIL
     [ $1 -eq 0 ] && WILL_FAIL=1
 
