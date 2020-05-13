@@ -5,10 +5,18 @@
 # Abort on each error
 set -e
 
+# Add job IDs and CRQs to commit message.
+[ $# -gt 1 ] && S=s
+MSG="API job$S:"
+for file in $(ls -rt $*); do
+    job=$(basename $file)
+    MSG="$MSG $job"
+done
+
 # Get CRQs from all jobs given as arguments.
-CRQ=$(jq -r '.params | .crq | values' $* | sort -u | paste -s -d,)
-MSG=API
-[ -n "$CRQ" ] && MSG="$MSG: $CRQ"
+CRQ=$(jq -r '.params | .crq | values' $* | sort -u | paste -s -d' ')
+newline=$'\n'
+[ -n "$CRQ" ] && MSG="$MSG$newline$CRQ"
 
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 

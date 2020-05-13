@@ -37,19 +37,15 @@ sub test_worker {
 
     setup_netspoc($home_dir, $in);
 
-    if (ref $job eq 'ARRAY') {
-        my $i = 1;
-        for my $j (@$job) {
-            write_file("job$i", encode_json($j));
-            $i++;
-        }
-    }
-    else {
-        write_file('job', encode_json($job));
+    ref $job eq 'ARRAY' or $job = [$job];
+    my $i = 1;
+    for my $j (@$job) {
+        write_file($i, encode_json($j));
+        $i++;
     }
 
     # Checkout files from CVS, apply changes and run Netspoc.
-    my ($success, $stderr) = run('bin/cvs-worker1 job*');
+    my ($success, $stderr) = run('bin/cvs-worker1 [0-9]*');
 
     if (not $success and (not $stderr or $stderr !~ /^Netspoc/)) {
         return ($success, $stderr);
@@ -83,11 +79,12 @@ sub test_worker {
     }
 
     # Try to check in changes.
-    ($success, $stderr) = run('bin/cvs-worker2 job*');
+    ($success, $stderr) = run('bin/cvs-worker2 [0-9]*');
     $success or $diff = $stderr;
 
     if (my $file = $named{cvs_log}) {
-        my $log = `cvs -q log netspoc/$file|egrep -v '^branches:|^date'|egrep -A1 '^revision'`;
+        my $log =
+            `cvs -q log netspoc/$file|tail -n +15|egrep -v '^date'|head -n -8`;
         $diff .= "---\n$log";
     }
     return ($success, $diff);
@@ -326,13 +323,8 @@ netspoc/topology
 +}
 ---
 revision 1.2
-API: CRQ00001234
---
-revision 1.1
-Initial revision
---
-revision 1.1.1.1
-start
+API job: 1
+CRQ00001234
 END
 
 test_run($title, $in, $job, $out, cvs_log => 'owner');
@@ -412,13 +404,8 @@ netspoc/topology
 +}
 ---
 revision 1.2
-API: CRQ00001234,CRQ00001236
---
-revision 1.1
-Initial revision
---
-revision 1.1.1.1
-start
+API jobs: 4 3 2 1
+CRQ00001234 CRQ00001236
 END
 
 test_run($title, $in, $job, $out, cvs_log => 'owner');

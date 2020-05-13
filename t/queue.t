@@ -227,10 +227,8 @@ sub check_cvs_log {
     my ($file, $expected, $title) = @_;
     local $ENV{HOME} = $backend;
     chdir;
-    my $log = `
-cvs -q log netspoc/$file |
-egrep -v '^branches:|^date|revision 1[.]1' |
-egrep -A1 '^revision'`;
+    my $log =
+        `cvs -q log netspoc/$file|tail -n +15|egrep -v '^date'|head -n -8`;
     eq_or_diff($log, $expected, $title);
 }
 
@@ -266,7 +264,8 @@ my $pid = start_queue();
 wait_job($id);
 check_cvs_log('topology', <<'EOF', 'Multiple files in one CVS commit');
 revision 1.2
-API: CRQ00001,CRQ00002,CRQ00003,CRQ00004,CRQ00005,CRQ00006,CRQ00007
+API jobs: 1 2 3 4 5 6 7
+CRQ00001 CRQ00002 CRQ00003 CRQ00004 CRQ00005 CRQ00006 CRQ00007
 EOF
 
 stop_queue($pid);
@@ -282,16 +281,20 @@ $pid = start_queue();
 wait_job($id);
 check_cvs_log('topology', <<'EOF', 'Multiple files with one error');
 revision 1.5
-API: CRQ000013,CRQ000014
---
+API jobs: 14 15
+CRQ000013 CRQ000014
+----------------------------
 revision 1.4
-API: CRQ000012
---
+API job: 12
+CRQ000012
+----------------------------
 revision 1.3
-API: CRQ000010,CRQ000011,CRQ00008,CRQ00009
---
+API jobs: 8 9 10 11
+CRQ000010 CRQ000011 CRQ00008 CRQ00009
+----------------------------
 revision 1.2
-API: CRQ00001,CRQ00002,CRQ00003,CRQ00004,CRQ00005,CRQ00006,CRQ00007
+API jobs: 1 2 3 4 5 6 7
+CRQ00001 CRQ00002 CRQ00003 CRQ00004 CRQ00005 CRQ00006 CRQ00007
 EOF
 
 # Fresh start with cleaned up topology and stopped queue.
