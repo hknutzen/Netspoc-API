@@ -251,8 +251,8 @@ sub add_host {
             network => 'a',
             name    => "name_10_1_1_$i",
             ip      => "10.1.1.$i",
-            crq     => "CRQ0000$i",
         },
+        crq     => "CRQ0000$i",
                   });
 }
 
@@ -310,7 +310,6 @@ my $job = {
         network => 'a',
         name    => 'name_10_1_1_4',
         ip      => '10.1.1.4',
-        crq     => 'CRQ00001234',
     },
 };
 
@@ -331,7 +330,6 @@ my $id3 = add_job({
         network => 'a',
         name    => 'name_10_1_1_5',
         ip      => '10.1.1.5',
-        crq     => 'CRQ000012345',
     },
     user => 'test',
     pass => 'test',

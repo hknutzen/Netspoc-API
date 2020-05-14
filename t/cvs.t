@@ -276,6 +276,7 @@ END
 
 $job = {
     method => 'multi_job',
+    crq => 'CRQ00001234',
     params => {
         jobs => [
             {
@@ -296,7 +297,6 @@ $job = {
                 }
             }
         ],
-        crq => 'CRQ00001234',
     }
 };
 
@@ -344,18 +344,18 @@ $job =
     [
      {
          method => 'create_host',
+         crq => 'CRQ00001236',
          params => {
              network => 'n1',
              name    => 'name_10_1_1_6',
              ip      => '10.1.1.6',
-             crq => 'CRQ00001236',
          },
 
      },
      {
          method => 'multi_job',
+         crq => 'CRQ00001236',
          params => {
-             crq => 'CRQ00001236',
              jobs =>
                  [
                   {
@@ -379,11 +379,11 @@ $job =
      },
      {
          method => 'create_host',
+         # Without CRQ
          params => {
              network => 'n1',
              name    => 'name_10_1_1_5',
              ip      => '10.1.1.5',
-             # Without CRQ
          },
 
      },
@@ -393,8 +393,8 @@ $job =
              network => 'n1',
              name    => 'name_10_1_1_7',
              ip      => '10.1.1.7',
-             crq => 'CRQ00001237',
          },
+         crq => 'CRQ00001237',
 
      }
     ];

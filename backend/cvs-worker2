@@ -14,7 +14,7 @@ for file in $(ls -rt $*); do
 done
 
 # Get CRQs from all jobs given as arguments.
-CRQ=$(jq -r '.params | .crq | values' $* | sort -u | paste -s -d' ')
+CRQ=$(jq -r '.crq | values' $* | sort -u | paste -s -d' ')
 newline=$'\n'
 [ -n "$CRQ" ] && MSG="$MSG$newline$CRQ"
 
