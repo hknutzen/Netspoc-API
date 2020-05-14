@@ -342,46 +342,61 @@ END
 
 $job =
     [
-      {
-          method => 'create_owner',
-          params => {
-              name     => 'a',
-              admins   => [ 'a@example.com' ],
-              crq => 'CRQ00001236',
-          },
-      },
-      {
-          method => 'create_host',
-          params => {
-              network => 'n1',
-              name    => 'name_10_1_1_4',
-              ip      => '10.1.1.4',
-              owner   => 'a',
-              crq => 'CRQ00001234',
-          },
+     {
+         method => 'create_host',
+         params => {
+             network => 'n1',
+             name    => 'name_10_1_1_6',
+             ip      => '10.1.1.6',
+             crq => 'CRQ00001236',
+         },
 
-      },
-      {
-          method => 'create_host',
-          params => {
-              network => 'n1',
-              name    => 'name_10_1_1_5',
-              ip      => '10.1.1.5',
-              # Without CRQ
-          },
+     },
+     {
+         method => 'multi_job',
+         params => {
+             crq => 'CRQ00001236',
+             jobs =>
+                 [
+                  {
+                      method => 'create_owner',
+                      params => {
+                          name     => 'a',
+                          admins   => [ 'a@example.com' ],
+                      },
+                  },
+                  {
+                      method => 'create_host',
+                      params => {
+                          network => 'n1',
+                          name    => 'name_10_1_1_4',
+                          ip      => '10.1.1.4',
+                          owner   => 'a',
+                      },
+                  },
+                 ],
+         }
+     },
+     {
+         method => 'create_host',
+         params => {
+             network => 'n1',
+             name    => 'name_10_1_1_5',
+             ip      => '10.1.1.5',
+             # Without CRQ
+         },
 
-      },
-      {
-          method => 'create_host',
-          params => {
-              network => 'n1',
-              name    => 'name_10_1_1_6',
-              ip      => '10.1.1.6',
-              owner   => 'a',
-              crq => 'CRQ00001236',
-          },
+     },
+     {
+         method => 'create_host',
+         params => {
+             network => 'n1',
+             name    => 'name_10_1_1_7',
+             ip      => '10.1.1.7',
+             crq => 'CRQ00001237',
+         },
 
-      }
+     }
     ];
 
 $out = <<'END';
@@ -395,17 +410,18 @@ netspoc/owner
 +}
 +
 netspoc/topology
-@@ -1 +1,5 @@
+@@ -1 +1,6 @@
 -network:n1 = { ip = 10.1.1.0/24; }
 +network:n1 = { ip = 10.1.1.0/24;
 + host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
 + host:name_10_1_1_5			= { ip = 10.1.1.5; }
-+ host:name_10_1_1_6			= { ip = 10.1.1.6; owner = a; }
++ host:name_10_1_1_6			= { ip = 10.1.1.6; }
++ host:name_10_1_1_7			= { ip = 10.1.1.7; }
 +}
 ---
 revision 1.2
 API jobs: 4 3 2 1
-CRQ00001234 CRQ00001236
+CRQ00001236 CRQ00001237
 END
 
 test_run($title, $in, $job, $out, cvs_log => 'owner');

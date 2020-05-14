@@ -1509,6 +1509,56 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'multi_job: add owner that exists and add host';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:name_10_1_1_5			= { ip = 10.1.1.5; owner = a; }
+}
+-- owner
+owner:a = { admins = a@example.com; }
+END
+
+$job = {
+    method => 'multi_job',
+    params => {
+        jobs => [
+            {
+                method => 'create_owner',
+                params => {
+                    name     => 'a',
+                    admins   => [ 'b@example.com' ],
+                    ok_if_exists => 1,
+                }
+            },
+            {
+                method => 'create_host',
+                params => {
+                    network => 'n1',
+                    name    => 'name_10_1_1_4',
+                    ip      => '10.1.1.4',
+                    owner   => 'a',
+                }
+            }
+        ],
+        crq => 'CRQ00001234',
+    }
+};
+
+$out = <<'END';
+netspoc/topology
+@@ -1,3 +1,4 @@
+ network:n1 = { ip = 10.1.1.0/24;
++ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
+  host:name_10_1_1_5			= { ip = 10.1.1.5; owner = a; }
+ }
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
 $title = 'multi_job: second job fails';
 ############################################################
 

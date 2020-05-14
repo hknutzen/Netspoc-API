@@ -124,7 +124,7 @@ create_owner () {
         if [ -n "$ok_if_exists" ] ; then
 
             # Owner already exists, nothing to do
-            exit 0
+            found=''
         fi
         # else
         # Create owner regardless of existing one; this would result in error.
@@ -178,11 +178,14 @@ do_job () {
             ;;
         multi_job)
             $method
-            exit 0
+            return
             ;;
         *)
             abort "Unknown method '$method'"
     esac
+
+    # Handle job that succeeds, but has nothing to do.
+    [ -z "$found" ] && return
 
     tmpfile=$(mktemp -p $HOME)
     trap "rm -f $tmpfile" EXIT
