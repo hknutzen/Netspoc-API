@@ -72,22 +72,30 @@ mkdir -p waiting inprogress finished result tmp
 
 while true; do
 
-    # Move new jobs from directory "waiting" to "inprogress".
-    for f in $(ls waiting); do
-       mv waiting/$f inprogress/$f
-    done
+    # Check for new jobs in directory "waiting".
+    NEW=$(ls waiting)
+    if [ -n "$NEW" ] ; then
+       # Move new jobs to "inprogress".
+       for f in $NEW; do
+          mv waiting/$f inprogress/$f
+       done
+       # Check again, to process multiple incoming jobs together.
+       sleep 0.5
+       continue
+    else
 
-    # Look again, adding stale jobs in directory "inprogress".
-    # Show old jobs first.
-    JOBS=$(ls -rt inprogress)
+       # Look again, adding stale jobs in directory "inprogress".
+       # Show old jobs first.
+       JOBS=$(ls -rt inprogress)
 
-    if [ -n "$JOBS" ] ; then
-        # Announce found files to STDOUT.
-        echo $JOBS
-        exit
+       if [ -n "$JOBS" ] ; then
+           # Announce found files to STDOUT.
+           echo $JOBS
+           exit
+       fi
+       # No jobs found, wait and check again
+       sleep 1
     fi
-    # No jobs found, wait and check again
-    sleep 1
 done
 EOF
                   ) ||
