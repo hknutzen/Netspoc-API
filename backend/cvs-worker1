@@ -1,18 +1,9 @@
 #!/bin/bash
 
-# Initialize or update CVS files, then call worker and netspoc.
+# Checkout netspoc files from CVS, then call worker and netspoc.
 
 # Abort on each error
 set -e
-
-# Directory, where system user stores and compiles versions of netspoc files.
-POLICYDB=$(get-netspoc-approve-conf netspocdir)
-CURRENT=$POLICYDB/current
-NEXT=$POLICYDB/next
-LOG=$CURRENT/compile.log
-# File exists if compile failed and compile.log may be outdated.
-FAILED=$POLICYDB/failed
-
 
 # Work in $HOME where paths are known.
 cd $HOME
@@ -20,34 +11,69 @@ cd $HOME
 abort () { echo "Error: $*" >&2; exit 1; }
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 
-# Wait for successful run of 'newpolicy'.
-wait_log_available () {
-    while [ -f $FAILED ] || ! [ -f $LOG ] ; do sleep 1 ; done
+# Time between "cvs update" on bad content in repository.
+WAIT_BAD_CVS=60
+[ -n "$NETSPOC_API_TEST" ] && WAIT_BAD_CVS=0.5
+
+# Wait for new commits.
+wait_new_commits () {
+    while true; do
+        MSG=$(cvs -q update -Pd netspoc.orig 2>err) ||
+            abort-err "Error during cvs update for netspoc.orig:"
+        [ -n "$MSG" ] && break
+        sleep $WAIT_BAD_CVS
+    done
 }
 
-# Wait until valid configuration has been processed by 'newpolicy'.
-wait_log_available
+while true; do
 
-# Read warnings in log file. It is OK if no warnings found.
-grep '^Warning:' $LOG >warn || true
+    # Get updated files.
+    rm -rf netspoc
+    cvs -Q checkout -P netspoc 2>err ||
+        abort-err "Error during initial cvs checkout:"
 
-# Get updated files.
-rm -rf netspoc
-cvs -Q checkout netspoc 2>err ||
-    abort-err "Error during initial cvs checkout:"
+    # Copy unchanged netspoc files for further inspection in case of errors.
+    rm -rf netspoc.orig
+    cp -r netspoc netspoc.orig
 
-bin/worker $*
+    # Apply changes.
+    bin/worker $*
 
-# Compile changed files, check for errors.
-if ! netspoc -q netspoc 2>err ; then
-    abort-err "Netspoc failed:"
-fi
+    # Compile changed files.
+    if netspoc -q netspoc 2>err; then
+        # Success.
+        if [ ! -s err ] ; then
+            exit 0
+        fi
+        # Warnings occurred.
+        FAILED=''
+    else
+        FAILED=1
+    fi
 
-# Warning occurred.
-if [ -s err ] ; then
+    # Check if original files also compile with errors or warnings.
+    if ! netspoc -q netspoc.orig 2>err.orig ; then
 
-    # Compare warnings from newpolicy with current warnings
+        # Current state has files that won't compile.
+        # Wait for updates and try again.
+        wait_new_commits
+        continue
+    fi
+
+    # Original files are ok, but changed files failed to compile.
+    if [ -n "$FAILED" ] ; then
+        abort-err "Netspoc failed:"
+    fi
+
+    # Collect warnings. It is ok if no warnings were found.
+    grep '^Warning:' err.orig >warn || true
+
+    # Warning occurred when compiling changed files.
+    # Compare with warnings from compiling original files.
     if ! grep '^Warning:' err | cmp -s warn - ; then
         abort-err "Netspoc warnings:"
     fi
-fi
+
+    # No additional warnings occurred.
+    exit 0
+done

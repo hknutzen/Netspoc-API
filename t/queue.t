@@ -26,8 +26,10 @@ $ENV{PATH} = "$NETSPOC_DIR/bin:$APPROVE_DIR/bin:$ENV{PATH}";
 
 my $API_DIR = "$ENV{HOME}/Netspoc-API";
 
-my ($frontend, $backend);
+# Let cvs-worker1 look for updated repository more frequently.
+$ENV{NETSPOC_API_TEST} = 1;
 
+my ($frontend, $backend);
 
 # Prepare directory for frontend, store name in global variable $frontend.
 sub setup_frontend {
@@ -81,7 +83,6 @@ sub change_netspoc {
     chdir;
     prepare_dir('netspoc', $in);
     system "cvs -Q commit -m test netspoc >/dev/null";
-    system 'newpolicy.pl >/dev/null 2>&1';
 }
 
 sub add_job {
