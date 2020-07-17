@@ -78,13 +78,14 @@ func process(source []byte, network, host, ip, owner string) []byte {
 
 				// Add host.
 				h := &ast.Attribute{Name: "host:" + host}
-				h.ComplexValue = append(h.ComplexValue, attr("ip", ip))
+				h.ComplexValue = append(h.ComplexValue, createAttr("ip", ip))
 				if owner != "" {
-					h.ComplexValue = append(h.ComplexValue, attr("owner", owner))
+					h.ComplexValue =
+						append(h.ComplexValue, createAttr("owner", owner))
 				}
 				n.Hosts = append(n.Hosts, h)
 
-				// Sort list of hosts
+				// Sort list of hosts.
 				n.Order()
 			}
 		}
@@ -92,7 +93,7 @@ func process(source []byte, network, host, ip, owner string) []byte {
 	return printer.File(nodes, source)
 }
 
-func attr(k, v string) *ast.Attribute {
+func createAttr(k, v string) *ast.Attribute {
 	val := &ast.Value{Value: v}
 	return &ast.Attribute{Name: k, ValueList: []*ast.Value{val}}
 }
