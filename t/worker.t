@@ -189,9 +189,12 @@ $job = {
 
 $out = <<'END';
 netspoc/group
-@@ -3,5 +3,6 @@
+@@ -1,7 +1,8 @@
+ group:g1 =
++ network:n3,
+  host:h_10_1_1_4,
   host:h_10_1_1_44,
-  network:n3,
+- network:n3,
   host:h_10_1_2_6,
 + host:h_10_1_2_7,
   host:h_10_1_2_9,
@@ -214,10 +217,12 @@ $job = {
 
 $out = <<'END';
 netspoc/group
-@@ -2,6 +2,7 @@
+@@ -1,7 +1,8 @@
+ group:g1 =
++ network:n3,
   host:h_10_1_1_4,
   host:h_10_1_1_44,
-  network:n3,
+- network:n3,
 + host:h_10_1_2_5,
   host:h_10_1_2_6,
   host:h_10_1_2_9,
@@ -240,13 +245,16 @@ $job = {
 
 $out = <<'END';
 netspoc/group
-@@ -1,5 +1,6 @@
+@@ -1,7 +1,8 @@
  group:g1 =
++ network:n3,
   host:h_10_1_1_4,
 + host:h_10_1_1_5,
   host:h_10_1_1_44,
-  network:n3,
+- network:n3,
   host:h_10_1_2_6,
+  host:h_10_1_2_9,
+ ;
 END
 
 test_run($title, $in, $job, $out);
@@ -294,9 +302,10 @@ $out = <<'END';
 netspoc/group
 @@ -1,5 +1,6 @@
  group:g1 =
-  interface:r1.n1,
+- interface:r1.n1,
   network:n1,
 + network:n2,
++ interface:r1.n1,
   interface:r1.n2,
  ;
 END
@@ -390,9 +399,10 @@ $job = {
 
 $out = <<'END';
 netspoc/group
-@@ -1,4 +1,5 @@
+@@ -1,4 +1,6 @@
  group:g1 =
   description = Some text;
++
   network:n1,
 + network:n2,
  ;
@@ -417,7 +427,7 @@ router:r1 = {
 
 network:n2 = { ip = 10.1.2.0/24; }
 -- group
-group:g1 = ; # Comment
+group:g1 = ; # IGNORED
 -- service
 service:s1 = {
  user = group:g1;
@@ -436,8 +446,8 @@ $job = {
 $out = <<'END';
 netspoc/group
 @@ -1 +1,3 @@
--group:g1 = ; # Comment
-+group:g1 = # Comment
+-group:g1 = ; # IGNORED
++group:g1 =
 + host:h4,
 +;
 END
