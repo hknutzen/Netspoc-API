@@ -60,7 +60,9 @@ sub test_worker {
     #--- unchanged/owner       15 Apr 2019 07:56:13 -0000
     #+++ netspoc/owner       15 Apr 2019 13:27:38 -0000
     #@@ -5,7 +5,7 @@
-    my $diff = `diff -u -r unchanged netspoc`;
+    #
+    # Remove single space in empty line.
+    my $diff = `diff -u -r unchanged netspoc | sed 's/^ \$//'`;
     $diff =~ s/^diff -u -r unchanged\/[^ ]* //mg;
     $diff =~ s/--- .*\n\+\+\+ .*\n//mg;
 
@@ -770,7 +772,7 @@ $title = 'Add host to known network';
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.1.1.0/24; } # Comment
+network:a = { ip = 10.1.1.0/24; }
 END
 
 $job = {
@@ -784,10 +786,11 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1 +1,3 @@
--network:a = { ip = 10.1.1.0/24; } # Comment
-+network:a = { ip = 10.1.1.0/24; # Comment
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
+@@ -1 +1,4 @@
+-network:a = { ip = 10.1.1.0/24; }
++network:a = {
++ ip = 10.1.1.0/24;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
 +}
 END
 
@@ -799,7 +802,8 @@ $title = 'Add host, insert sorted';
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.1.1.0/24;
+network:a = {
+ ip = 10.1.1.0/24;
  # Comment1
  host:name_10_1_1_2 = { ip = 10.1.1.2; }
  # Comment2
@@ -820,11 +824,11 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,6 +1,7 @@
- network:a = { ip = 10.1.1.0/24;
+@@ -2,6 +2,7 @@
+  ip = 10.1.1.0/24;
   # Comment1
   host:name_10_1_1_2 = { ip = 10.1.1.2; }
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
   # Comment2
   # Comment3
   host:name_10_1_1_5 = { ip = 10.1.1.5; }
@@ -838,7 +842,8 @@ $title = 'Add host, same name';
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.1.1.0/24;
+network:a = {
+ ip = 10.1.1.0/24;
  host:name_10_1_1_4 = { ip = 10.1.1.4; }
 }
 END
@@ -858,10 +863,11 @@ Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
 Aborted with 2 error(s)
 ---
 netspoc/topology
-@@ -1,3 +1,4 @@
- network:a = { ip = 10.1.1.0/24;
+@@ -1,4 +1,5 @@
+ network:a = {
+  ip = 10.1.1.0/24;
   host:name_10_1_1_4 = { ip = 10.1.1.4; }
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
  }
 END
 
@@ -873,7 +879,8 @@ $title = 'Add host, same IP';
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.1.1.0/24;
+network:a = {
+ ip = 10.1.1.0/24;
  host:other_10_1_1_4 = { ip = 10.1.1.4; }
 }
 END
@@ -892,10 +899,11 @@ Error: Duplicate IP address for host:other_10_1_1_4 and host:name_10_1_1_4
 Aborted with 1 error(s)
 ---
 netspoc/topology
-@@ -1,3 +1,4 @@
- network:a = { ip = 10.1.1.0/24;
+@@ -1,4 +1,5 @@
+ network:a = {
+  ip = 10.1.1.0/24;
   host:other_10_1_1_4 = { ip = 10.1.1.4; }
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
++ host:name_10_1_1_4  = { ip = 10.1.1.4; }
  }
 END
 
@@ -907,7 +915,8 @@ $title = 'Add host, same IP unsorted';
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.1.1.0/24;
+network:a = {
+ ip = 10.1.1.0/24;
  host:name_10_1_1_5 = { ip = 10.1.1.5; }
  host:name_10_1_1_4 = { ip = 10.1.1.4; }
 }
@@ -928,11 +937,13 @@ Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
 Aborted with 2 error(s)
 ---
 netspoc/topology
-@@ -1,4 +1,5 @@
- network:a = { ip = 10.1.1.0/24;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
-  host:name_10_1_1_5 = { ip = 10.1.1.5; }
+@@ -1,5 +1,6 @@
+ network:a = {
+  ip = 10.1.1.0/24;
+- host:name_10_1_1_5 = { ip = 10.1.1.5; }
   host:name_10_1_1_4 = { ip = 10.1.1.4; }
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
++ host:name_10_1_1_5 = { ip = 10.1.1.5; }
  }
 END
 
@@ -944,7 +955,7 @@ $title = 'Multiple networks at one line';
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.1.1.0/24; } network:b = { ip = 10.1.2.0/24; } # Comment
+network:a = { ip = 10.1.1.0/24; } network:b = { ip = 10.1.2.0/24; }
 router:r1 = {
  interface:a;
  interface:b;
@@ -961,21 +972,24 @@ $job = {
 };
 
 $out = <<'END';
-Error: IP of host:name_10_1_1_4 doesn't match IP/mask of network:b
-Aborted with 1 error(s)
----
 netspoc/topology
-@@ -1,4 +1,6 @@
--network:a = { ip = 10.1.1.0/24; } network:b = { ip = 10.1.2.0/24; } # Comment
-+network:a = { ip = 10.1.1.0/24; } network:b = { ip = 10.1.2.0/24; # Comment
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
+@@ -1,4 +1,12 @@
+-network:a = { ip = 10.1.1.0/24; } network:b = { ip = 10.1.2.0/24; }
++network:a = {
++ ip = 10.1.1.0/24;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
 +}
++
++network:b = {
++ ip = 10.1.2.0/24;
++}
++
  router:r1 = {
   interface:a;
   interface:b;
 END
 
-test_err($title, $in, $job, $out);
+test_run($title, $in, $job, $out);
 
 ############################################################
 $title = 'Add host with owner';
@@ -983,7 +997,10 @@ $title = 'Add host with owner';
 
 $in = <<'END';
 -- topology
-owner:DA_abc = { admins = abc@example.com; }
+owner:DA_abc = {
+ admins = abc@example.com;
+}
+
 network:a = { ip = 10.1.0.0/21; }
 END
 
@@ -999,11 +1016,14 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,2 +1,4 @@
- owner:DA_abc = { admins = abc@example.com; }
+@@ -2,4 +2,7 @@
+  admins = abc@example.com;
+ }
+
 -network:a = { ip = 10.1.0.0/21; }
-+network:a = { ip = 10.1.0.0/21;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
++network:a = {
++ ip = 10.1.0.0/21;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
 +}
 END
 
@@ -1015,8 +1035,14 @@ $title = 'Add host, redundant owner';
 
 $in = <<'END';
 -- topology
-owner:DA_abc = { admins = abc@example.com; }
-network:a = { ip = 10.1.0.0/21; owner = DA_abc; }
+owner:DA_abc = {
+ admins = abc@example.com;
+}
+
+network:a = {
+ ip = 10.1.0.0/21;
+ owner = DA_abc;
+}
 END
 
 $job = {
@@ -1030,19 +1056,16 @@ $job = {
 };
 
 $out = <<'END';
-Warning: Useless owner:DA_abc at host:name_10_1_1_4,
- it was already inherited from network:a
----
 netspoc/topology
-@@ -1,2 +1,4 @@
- owner:DA_abc = { admins = abc@example.com; }
--network:a = { ip = 10.1.0.0/21; owner = DA_abc; }
-+network:a = { ip = 10.1.0.0/21; owner = DA_abc;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
-+}
+@@ -5,4 +5,5 @@
+ network:a = {
+  ip = 10.1.0.0/21;
+  owner = DA_abc;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
+ }
 END
 
-test_err($title, $in, $job, $out);
+test_run($title, $in, $job, $out);
 
 ############################################################
 $title = 'Add host, with warning from previous checkin';
@@ -1050,9 +1073,14 @@ $title = 'Add host, with warning from previous checkin';
 
 $in = <<'END';
 -- topology
-owner:DA_abc = { admins = abc@example.com; }
-network:a = { ip = 10.1.0.0/21; owner = DA_abc;
- host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
+owner:DA_abc = {
+ admins = abc@example.com;
+}
+
+network:a = {
+ ip = 10.1.0.0/21;
+ owner = DA_abc;
+ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
 }
 END
 
@@ -1070,11 +1098,12 @@ Warning: Useless owner:DA_abc at host:name_10_1_1_4,
  it was already inherited from network:a
 ---
 netspoc/topology
-@@ -1,4 +1,5 @@
- owner:DA_abc = { admins = abc@example.com; }
- network:a = { ip = 10.1.0.0/21; owner = DA_abc;
-+ host:name_10_1_1_3			= { ip = 10.1.1.3; }
-  host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
+@@ -5,5 +5,6 @@
+ network:a = {
+  ip = 10.1.0.0/21;
+  owner = DA_abc;
++ host:name_10_1_1_3 = { ip = 10.1.1.3; }
+  host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
  }
 END
 
@@ -1086,9 +1115,19 @@ $title = 'Add host, with old and new warning';
 
 $in = <<'END';
 -- topology
-owner:DA_abc = { admins = abc@example.com; }
-network:a = { ip = 10.1.0.0/21; owner = DA_abc;
- host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
+network:a = {
+ ip = 10.1.0.0/21;
+ host:name_10_1_1_4 = { ip = 10.1.1.4; }
+}
+
+router:r = {
+ interface:a;
+ interface:b;
+}
+
+network:b = {
+ ip = 10.1.1.0/24;
+ subnet_of = network:a;
 }
 END
 
@@ -1098,23 +1137,21 @@ $job = {
         network => 'a',
         name    => 'name_10_1_1_3',
         ip      => '10.1.1.3',
-        owner   => 'DA_abc',
     }
 };
 
 $out = <<'END';
-Warning: Useless owner:DA_abc at host:name_10_1_1_3,
- it was already inherited from network:a
-Warning: Useless owner:DA_abc at host:name_10_1_1_4,
- it was already inherited from network:a
+Warning: IP of host:name_10_1_1_3 overlaps with subnet network:b
+Warning: IP of host:name_10_1_1_4 overlaps with subnet network:b
 ---
 netspoc/topology
-@@ -1,4 +1,5 @@
- owner:DA_abc = { admins = abc@example.com; }
- network:a = { ip = 10.1.0.0/21; owner = DA_abc;
-+ host:name_10_1_1_3			= { ip = 10.1.1.3; owner = DA_abc; }
-  host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
+@@ -1,5 +1,6 @@
+ network:a = {
+  ip = 10.1.0.0/21;
++ host:name_10_1_1_3 = { ip = 10.1.1.3; }
+  host:name_10_1_1_4 = { ip = 10.1.1.4; }
  }
+
 END
 
 test_err($title, $in, $job, $out);
@@ -1125,7 +1162,9 @@ $title = 'Add host, unknown owner';
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.1.0.0/21; }
+network:a = {
+ ip = 10.1.0.0/21;
+}
 END
 
 $job = {
@@ -1143,11 +1182,11 @@ Error: Can't resolve reference to 'DA_abc' in attribute 'owner' of host:name_10_
 Aborted with 1 error(s)
 ---
 netspoc/topology
-@@ -1 +1,3 @@
--network:a = { ip = 10.1.0.0/21; }
-+network:a = { ip = 10.1.0.0/21;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
-+}
+@@ -1,3 +1,4 @@
+ network:a = {
+  ip = 10.1.0.0/21;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
+ }
 END
 
 test_err($title, $in, $job, $out);
@@ -1233,15 +1272,14 @@ $title = 'Add host [auto]';
 
 $in = <<'END';
 -- topology
-#network:c = {
-# ip = 10.1.0.0/21;
-network:d = { ip = 10.2.0.0/21; }
-network:a = {
- # Comment
-#network:b = {
- ip = 10.1.0.0/21;
- # Comment2
+network:d = {
+ ip = 10.2.0.0/21;
 }
+
+network:a = {
+ ip = 10.1.0.0/21;
+}
+
 router:r = {
  interface:a;
  interface:d;
@@ -1260,14 +1298,14 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -6,6 +6,7 @@
- #network:b = {
+@@ -4,6 +4,7 @@
+
+ network:a = {
   ip = 10.1.0.0/21;
-  # Comment2
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
  }
+
  router:r = {
-  interface:a;
 END
 
 test_run($title, $in, $job, $out);
@@ -1450,7 +1488,9 @@ $title = 'multi_job: add host and owner';
 
 $in = <<'END';
 -- topology
-network:n1 = { ip = 10.1.1.0/24; }
+network:n1 = {
+ ip = 10.1.1.0/24;
+}
 -- owner
 # Add owners below.
 END
@@ -1496,11 +1536,11 @@ netspoc/owner
 +}
 +
 netspoc/topology
-@@ -1 +1,3 @@
--network:n1 = { ip = 10.1.1.0/24; }
-+network:n1 = { ip = 10.1.1.0/24;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
-+}
+@@ -1,3 +1,4 @@
+ network:n1 = {
+  ip = 10.1.1.0/24;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = a; }
+ }
 END
 
 test_run($title, $in, $job, $out);
@@ -1511,11 +1551,14 @@ $title = 'multi_job: add owner that exists and add host';
 
 $in = <<'END';
 -- topology
-network:n1 = { ip = 10.1.1.0/24;
- host:name_10_1_1_5			= { ip = 10.1.1.5; owner = a; }
+network:n1 = {
+ ip = 10.1.1.0/24;
+ host:name_10_1_1_5 = { ip = 10.1.1.5; owner = a; }
 }
 -- owner
-owner:a = { admins = a@example.com; }
+owner:a = {
+ admins = a@example.com;
+}
 END
 
 $job = {
@@ -1545,10 +1588,11 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,3 +1,4 @@
- network:n1 = { ip = 10.1.1.0/24;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
-  host:name_10_1_1_5			= { ip = 10.1.1.5; owner = a; }
+@@ -1,4 +1,5 @@
+ network:n1 = {
+  ip = 10.1.1.0/24;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = a; }
+  host:name_10_1_1_5 = { ip = 10.1.1.5; owner = a; }
  }
 END
 
