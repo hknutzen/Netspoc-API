@@ -5,6 +5,11 @@
 # Abort on each error
 set -e
 
+# If set, the return value of a pipeline is the value of the last
+# (rightmost) command to exit with a non-zero status, or zero if all
+# commands in the pipeline exit successfully.
+set -o pipefail
+
 # Work in $HOME where paths are known.
 cd $HOME
 
@@ -36,11 +41,8 @@ while true; do
     rm -rf netspoc.orig
     cp -r netspoc netspoc.orig
 
-    # Apply changes.
-    bin/worker $*
-
-    # Compile changed files.
-    if netspoc -q netspoc 2>err; then
+    # Apply changes and compile changed files.
+    if { bin/worker $* && netspoc -q netspoc; } 2>err; then
         # Success.
         if [ ! -s err ] ; then
             exit 0
