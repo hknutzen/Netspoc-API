@@ -64,6 +64,7 @@ sub test_worker {
     my $diff = `cvs -Q diff -u netspoc`;
     $diff =~ s/^Index: //mg;
     $diff =~ s/^={67}\nRCS .*\nretrieving .*\ndiff .*\n--- .*\n\+\+\+ .*\n//mg;
+    $diff =~ s/^ $//m;
 
     # Combine warnings and diff into one message, separated by "---".
     if (not $success) {
@@ -123,7 +124,7 @@ $in = <<'END';
 -- topology
 owner:DA_abc = { admins = abc@example.com; }
 network:a = { ip = 10.1.0.0/21; owner = DA_abc;
- host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
+ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
 }
 END
 
@@ -138,25 +139,41 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,4 +1,5 @@
- owner:DA_abc = { admins = abc@example.com; }
- network:a = { ip = 10.1.0.0/21; owner = DA_abc;
-+ host:name_10_1_1_3			= { ip = 10.1.1.3; }
-  host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
+@@ -1,4 +1,10 @@
+-owner:DA_abc = { admins = abc@example.com; }
+-network:a = { ip = 10.1.0.0/21; owner = DA_abc;
++owner:DA_abc = {
++ admins = abc@example.com;
++}
++
++network:a = {
++ ip = 10.1.0.0/21;
++ owner = DA_abc;
++ host:name_10_1_1_3 = { ip = 10.1.1.3; }
+  host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
  }
 END
 
 test_run($title, $in, $job, $out);
 
 ############################################################
-$title = 'Add host, with old and new warning';
+$title = 'Add host, with old warning and new warning';
 ############################################################
 
 $in = <<'END';
 -- topology
-owner:DA_abc = { admins = abc@example.com; }
-network:a = { ip = 10.1.0.0/21; owner = DA_abc;
- host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
+owner:DA_abc = {
+ admins = abc@example.com;
+}
+
+any:a = {
+ link = network:a;
+ owner = DA_abc;
+}
+
+network:a = {
+ ip = 10.1.0.0/21;
+ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
 }
 END
 
@@ -173,16 +190,17 @@ $job = {
 $out = <<'END';
 Netspoc warnings:
 Warning: Useless owner:DA_abc at host:name_10_1_1_3,
- it was already inherited from network:a
+ it was already inherited from any:a
 Warning: Useless owner:DA_abc at host:name_10_1_1_4,
- it was already inherited from network:a
+ it was already inherited from any:a
 ---
 netspoc/topology
-@@ -1,4 +1,5 @@
- owner:DA_abc = { admins = abc@example.com; }
- network:a = { ip = 10.1.0.0/21; owner = DA_abc;
-+ host:name_10_1_1_3			= { ip = 10.1.1.3; owner = DA_abc; }
-  host:name_10_1_1_4			= { ip = 10.1.1.4; owner = DA_abc; }
+@@ -9,5 +9,6 @@
+
+ network:a = {
+  ip = 10.1.0.0/21;
++ host:name_10_1_1_3 = { ip = 10.1.1.3; owner = DA_abc; }
+  host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
  }
 END
 
@@ -217,10 +235,11 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,2 +1,4 @@
+@@ -1,2 +1,5 @@
 -network:a = { ip = 10.1.0.0/21; }
-+network:a = { ip = 10.1.0.0/21;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; }
++network:a = {
++ ip = 10.1.0.0/21;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
 +}
  #
 END
@@ -316,10 +335,11 @@ netspoc/owner
 +}
 +
 netspoc/topology
-@@ -1 +1,3 @@
+@@ -1 +1,4 @@
 -network:n1 = { ip = 10.1.1.0/24; }
-+network:n1 = { ip = 10.1.1.0/24;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
++network:n1 = {
++ ip = 10.1.1.0/24;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = a; }
 +}
 ---
 revision 1.2
@@ -410,13 +430,14 @@ netspoc/owner
 +}
 +
 netspoc/topology
-@@ -1 +1,6 @@
+@@ -1 +1,7 @@
 -network:n1 = { ip = 10.1.1.0/24; }
-+network:n1 = { ip = 10.1.1.0/24;
-+ host:name_10_1_1_4			= { ip = 10.1.1.4; owner = a; }
-+ host:name_10_1_1_5			= { ip = 10.1.1.5; }
-+ host:name_10_1_1_6			= { ip = 10.1.1.6; }
-+ host:name_10_1_1_7			= { ip = 10.1.1.7; }
++network:n1 = {
++ ip = 10.1.1.0/24;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; owner = a; }
++ host:name_10_1_1_5 = { ip = 10.1.1.5; }
++ host:name_10_1_1_6 = { ip = 10.1.1.6; }
++ host:name_10_1_1_7 = { ip = 10.1.1.7; }
 +}
 ---
 revision 1.2
