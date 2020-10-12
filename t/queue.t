@@ -354,8 +354,7 @@ www_check_status(
 ERROR
 Netspoc failed:
 Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
-Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
-Aborted with 2 error(s)
+Aborted with 1 error(s)
 END
 
 www_check_status(

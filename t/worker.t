@@ -585,8 +585,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Can't resolve reference to 'a' in attribute 'owner' of network:n1
-Aborted with 1 error(s)
+Warning: Ignoring undefined owner:a of network:n1
 ---
 netspoc/owner
 @@ -1,4 +1 @@
@@ -869,8 +868,7 @@ $job = {
 
 $out = <<'END';
 Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
-Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
-Aborted with 2 error(s)
+Aborted with 1 error(s)
 ---
 netspoc/topology
 @@ -1,4 +1,5 @@
@@ -943,8 +941,7 @@ $job = {
 
 $out = <<'END';
 Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
-Error: Duplicate IP address for host:name_10_1_1_4 and host:name_10_1_1_4
-Aborted with 2 error(s)
+Aborted with 1 error(s)
 ---
 netspoc/topology
 @@ -1,5 +1,6 @@
@@ -983,16 +980,14 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,4 +1,12 @@
+@@ -1,4 +1,10 @@
 -network:a = { ip = 10.1.1.0/24; } network:b = { ip = 10.1.2.0/24; }
 +network:a = {
 + ip = 10.1.1.0/24;
 + host:name_10_1_1_4 = { ip = 10.1.1.4; }
 +}
 +
-+network:b = {
-+ ip = 10.1.2.0/24;
-+}
++network:b = { ip = 10.1.2.0/24; }
 +
  router:r1 = {
   interface:a;
@@ -1188,8 +1183,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Can't resolve reference to 'DA_abc' in attribute 'owner' of host:name_10_1_1_4
-Aborted with 1 error(s)
+Warning: Ignoring undefined owner:DA_abc of host:name_10_1_1_4
 ---
 netspoc/topology
 @@ -1,3 +1,4 @@
@@ -1282,9 +1276,7 @@ $title = 'Add host [auto]';
 
 $in = <<'END';
 -- topology
-network:d = {
- ip = 10.2.0.0/21;
-}
+network:d = { ip = 10.2.0.0/21; }
 
 network:a = {
  ip = 10.1.0.0/21;
@@ -1308,7 +1300,7 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -4,6 +4,7 @@
+@@ -2,6 +2,7 @@
 
  network:a = {
   ip = 10.1.0.0/21;
@@ -1883,7 +1875,7 @@ $job = {
 };
 
 $out = <<'END';
-Syntax error: Comma expected in list of values at line 3 of netspoc/owner, near "example.com<--HERE-->,"
+Syntax error: Expected ';' at line 3 of netspoc/owner, near "b --HERE-->example.com"
 ---
 netspoc/owner
 @@ -1 +1,5 @@
