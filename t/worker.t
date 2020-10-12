@@ -480,16 +480,14 @@ Error: Duplicate definition of owner:a in netspoc/owner
 Aborted with 1 error(s)
 ---
 netspoc/owner
-@@ -1,3 +1,9 @@
+@@ -1,3 +1,7 @@
  owner:a = {
   admins = a@example.com;
  }
-+owner:a = {
-+ admins =
-+	a@example.com,
-+	;
-+}
 +
++owner:a = {
++ admins = a@example.com;
++}
 END
 
 test_err($title, $in, $job, $out);
@@ -549,16 +547,16 @@ Error: Duplicate definition of owner:a in netspoc/owner
 Aborted with 1 error(s)
 ---
 netspoc/owner
-@@ -2,3 +2,9 @@
- = {
-  admins = a@example.com;
- }
+@@ -1,4 +1,7 @@
+-owner:a
+-= {
 +owner:a = {
-+ admins =
-+	a@example.com,
-+	;
++ admins = a@example.com;
 +}
 +
++owner:a = {
+  admins = a@example.com;
+ }
 END
 
 test_err($title, $in, $job, $out);
@@ -1524,19 +1522,16 @@ $job = {
 
 $out = <<'END';
 netspoc/owner
-@@ -1 +1,12 @@
- # Add owners below.
+@@ -1 +1,9 @@
 +owner:a = {
-+ admins =
-+	a@example.com,
-+	b@example.com,
-+	;
-+ watchers =
-+	c@example.com,
-+	d@example.com,
-+	;
++ admins = a@example.com,
++          b@example.com,
++          ;
++ watchers = c@example.com,
++            d@example.com,
++            ;
 +}
-+
+ # Add owners below.
 netspoc/topology
 @@ -1,3 +1,4 @@
  network:n1 = {
@@ -1693,14 +1688,12 @@ $job = {
 
 $out = <<'END';
 netspoc/owner
-@@ -1 +1,6 @@
+@@ -1 +1,4 @@
 -owner:o1 = { admins = a1@example.com; }
-+owner:o2 = {
-+ admins =
-+	a2@example.com,
-+	;
-+}
 +
++owner:o2 = {
++ admins = a2@example.com;
++}
 netspoc/topology
 @@ -2,6 +2,7 @@
   ip = 10.1.1.0/24;
@@ -1737,7 +1730,9 @@ router:r1 = {
  interface:n2;
 }
 -- owner-token
-owner:DA_TOKEN_o1 = { admins = a1@example.com; }
+owner:DA_TOKEN_o1 = {
+ admins = a1@example.com;
+}
 owner:DA_TOKEN_o2 = { admins = a2@example.com; }
 END
 
@@ -1772,15 +1767,16 @@ $job = {
 
 $out = <<'END';
 netspoc/owner-token
-@@ -1,2 +1,7 @@
- owner:DA_TOKEN_o1 = { admins = a1@example.com; }
+@@ -1,4 +1,8 @@
+ owner:DA_TOKEN_o1 = {
+  admins = a1@example.com;
+ }
 -owner:DA_TOKEN_o2 = { admins = a2@example.com; }
-+owner:DA_TOKEN_o3 = {
-+ admins =
-+	a3@example.com,
-+	;
-+}
 +
++
++owner:DA_TOKEN_o3 = {
++ admins = a3@example.com;
++}
 netspoc/topology
 @@ -6,7 +6,7 @@
  network:n2 = {

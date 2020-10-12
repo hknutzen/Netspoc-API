@@ -321,19 +321,16 @@ $job = {
 
 $out = <<'END';
 netspoc/owner
-@@ -1 +1,12 @@
- # Add owners below.
+@@ -1 +1,9 @@
 +owner:a = {
-+ admins =
-+	a@example.com,
-+	b@example.com,
-+	;
-+ watchers =
-+	c@example.com,
-+	d@example.com,
-+	;
++ admins = a@example.com,
++          b@example.com,
++          ;
++ watchers = c@example.com,
++            d@example.com,
++            ;
 +}
-+
+ # Add owners below.
 netspoc/topology
 @@ -1 +1,4 @@
 -network:n1 = { ip = 10.1.1.0/24; }
@@ -421,14 +418,11 @@ $job =
 
 $out = <<'END';
 netspoc/owner
-@@ -1 +1,7 @@
- # Add owners below.
+@@ -1 +1,4 @@
 +owner:a = {
-+ admins =
-+	a@example.com,
-+	;
++ admins = a@example.com;
 +}
-+
+ # Add owners below.
 netspoc/topology
 @@ -1 +1,7 @@
 -network:n1 = { ip = 10.1.1.0/24; }
