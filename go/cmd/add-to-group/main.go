@@ -63,6 +63,7 @@ func main() {
 
 func process(source []byte, group, object string) []byte {
 	nodes := parser.ParseFile(source, "STDIN")
+	found := false
 	for _, toplevel := range nodes {
 		if n, ok := toplevel.(*ast.TopList); ok {
 			typ, name := getTypeName(n.Name)
@@ -75,8 +76,13 @@ func process(source []byte, group, object string) []byte {
 
 				// Sort list of objects.
 				n.Order()
+				found = true
+				break
 			}
 		}
+	}
+	if !found {
+		abort.Msg("Can't find group:%s", group)
 	}
 	return printer.File(nodes, source)
 }
