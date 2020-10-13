@@ -66,15 +66,19 @@ func main() {
 func process(source []byte, owner string) []byte {
 	nodes := parser.ParseFile(source, "STDIN")
 	copy := make([]ast.Toplevel, 0, len(nodes)+1)
-
+	found := false
 	for _, toplevel := range nodes {
 		if n, ok := toplevel.(*ast.TopStruct); ok {
 			typ, name := getTypeName(n.Name)
 			if typ == "owner" && name == owner {
+				found = true
 				continue
 			}
 		}
 		copy = append(copy, toplevel)
+	}
+	if !found {
+		abort.Msg("Can't find owner:%s", owner)
 	}
 	return printer.File(copy, source)
 }
