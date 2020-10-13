@@ -35,7 +35,6 @@ import (
 	"github.com/hknutzen/Netspoc/go/pkg/printer"
 	"io/ioutil"
 	"os"
-	"strings"
 )
 
 func main() {
@@ -66,27 +65,17 @@ func main() {
 func process(source []byte, owner string) []byte {
 	nodes := parser.ParseFile(source, "STDIN")
 	copy := make([]ast.Toplevel, 0, len(nodes)+1)
+	owner = "owner:" + owner
 	found := false
 	for _, toplevel := range nodes {
-		if n, ok := toplevel.(*ast.TopStruct); ok {
-			typ, name := getTypeName(n.Name)
-			if typ == "owner" && name == owner {
-				found = true
-				continue
-			}
+		if owner == toplevel.GetName() {
+			found = true
+		} else {
+			copy = append(copy, toplevel)
 		}
-		copy = append(copy, toplevel)
 	}
 	if !found {
-		abort.Msg("Can't find owner:%s", owner)
+		abort.Msg("Can't find %s", owner)
 	}
 	return printer.File(copy, source)
-}
-
-func getTypeName(v string) (string, string) {
-	parts := strings.SplitN(v, ":", 2)
-	if len(parts) != 2 {
-		return "", ""
-	}
-	return parts[0], parts[1]
 }
