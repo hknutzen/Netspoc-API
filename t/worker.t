@@ -617,19 +617,18 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,3 +1,11 @@
+@@ -1,3 +1,10 @@
  network:n1 = { ip = 10.1.1.0/24; owner = a; }
++
  owner:a = {
 - admins = a@example.com; } # Comment
-+ admins =
-+	a@example.com,
-+	b@example.com,
-+	;
-+ watchers =
-+	c@example.com,
-+	d@example.com,
-+	;
-+} # Comment
++ admins = a@example.com,
++          b@example.com,
++          ;
++ watchers = c@example.com,
++            d@example.com,
++            ;
++}
 END
 
 test_run($title, $in, $job, $out);
@@ -657,17 +656,14 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,4 +1,9 @@
+@@ -1,4 +1,6 @@
  network:n1 = { ip = 10.1.1.0/24; owner = a; }
++
  owner:a = {
 - watchers = b@example.com;
 - admins   = a@example.com; }
-+ admins =
-+	b@example.com,
-+	;
-+ watchers =
-+	c@example.com,
-+	;
++ watchers = c@example.com;
++ admins = b@example.com;
 +}
 END
 
@@ -696,11 +692,13 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,5 +1,4 @@
+@@ -1,5 +1,5 @@
  network:n1 = { ip = 10.1.1.0/24; owner = a; }
++
  owner:a = {
 - watchers = b@example.com;
-  admins   = a@example.com;
+- admins   = a@example.com;
++ admins = a@example.com;
  }
 END
 
@@ -726,13 +724,12 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,2 +1,6 @@
+@@ -1,2 +1,5 @@
  network:n1 = { ip = 10.1.1.0/24; owner = a; }
 -owner:a = { admins = a@example.com; }
++
 +owner:a = {
-+ admins =
-+	c@example.com,
-+	;
++ admins = c@example.com;
 +}
 END
 
@@ -760,13 +757,12 @@ $job = {
 
 $out = <<'END';
 netspoc/topology
-@@ -1,4 +1,7 @@
+@@ -1,4 +1,6 @@
  network:n1 = { ip = 10.1.1.0/24; owner = a; }
++
  owner:a = {
 - admins = a@example.com; watchers = b@example.com;
-+ admins =
-+	c@example.com,
-+	;
++ admins = c@example.com;
 + watchers = b@example.com;
  }
 END
@@ -1694,14 +1690,14 @@ netspoc/owner
 + admins = a2@example.com;
 +}
 netspoc/topology
-@@ -2,6 +2,7 @@
+@@ -1,7 +1,5 @@
+ network:n1 = {
   ip = 10.1.1.0/24;
-  host:h1 = {
-   ip = 10.1.1.1;
+- host:h1 = {
+-  ip = 10.1.1.1;
 -  owner = o1;
 - } host:h2 = { ip = 10.1.1.2; owner = o1; }
-+  owner = o2;
-+ }
++ host:h1 = { ip = 10.1.1.1; owner = o2; }
 + host:h2 = { ip = 10.1.1.2; owner = o2; }
  }
 END
@@ -1719,11 +1715,13 @@ network:n1 = {
  host:id:a1@example.com = { ip = 10.1.1.1; owner = DA_TOKEN_o1; }
  host:id:a2@example.com = { ip = 10.1.1.2; owner = DA_TOKEN_o1; }
 }
+
 network:n2 = {
  ip = 10.1.2.0/24;
  host:id:a1@example.com = { ip = 10.1.2.1; owner = DA_TOKEN_o1; }
  host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o2; }
 }
+
 router:r1 = {
  interface:n1;
  interface:n2;
@@ -1776,56 +1774,18 @@ netspoc/owner-token
 + admins = a3@example.com;
 +}
 netspoc/topology
-@@ -6,7 +6,7 @@
+@@ -7,7 +7,7 @@
  network:n2 = {
   ip = 10.1.2.0/24;
   host:id:a1@example.com = { ip = 10.1.2.1; owner = DA_TOKEN_o1; }
 - host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o2; }
 + host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o3; }
  }
+
  router:r1 = {
-  interface:n1;
 END
 
 test_run($title, $in, $job, $out);
-
-############################################################
-$title = 'Must not change wrong ID-host';
-############################################################
-
-$in = <<'END';
--- topology
-network:n1 = {
- ip = 10.1.1.0/24;
- host:id:a1@example.com
- = { ip = 10.1.1.1; owner = o1; }
-}
-network:n2 = {
- ip = 10.1.2.0/24;
- host:id:a1@example.com = { ip = 10.1.2.1; owner = DA_TOKEN_o1; }
-}
-router:r1 = {
- interface:n1;
- interface:n2;
-}
--- owner-token
-owner:DA_TOKEN_o1 = { admins = a1@example.com; }
-owner:DA_TOKEN_o2 = { admins = a2@example.com; }
-END
-
-$job = {
-    method => 'modify_host',
-    params => {
-        name    => 'id:a1@example.com.n1',
-        owner   => 'o1',
-    }
-};
-
-$out = <<'END';
-Error: Can't find host:id:a1@example.com
-END
-
-test_err($title, $in, $job, $out);
 
 ############################################################
 $title = 'Job with malicous network name';
@@ -1869,15 +1829,13 @@ $job = {
 };
 
 $out = <<'END';
-Syntax error: Expected ';' at line 3 of netspoc/owner, near "b --HERE-->example.com"
+Syntax error: Expected ';' at line 2 of netspoc/owner, near "b --HERE-->example.com"
 ---
 netspoc/owner
-@@ -1 +1,5 @@
+@@ -1 +1,3 @@
 -owner:a = { admins = a@example.com; }
 +owner:a = {
-+ admins =
-+	b example.com,
-+	;
++ admins = b example.com;
 +}
 END
 
