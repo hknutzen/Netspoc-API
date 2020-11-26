@@ -94,6 +94,8 @@ sub test_err {
         fail($title);
         return;
     }
+    # Cleanup error message.
+    $stderr =~ s/\nAborted$//ms;
     eq_or_diff($stderr, $expected, $title);
 }
 
@@ -111,7 +113,7 @@ END
 $job = {};
 
 $out = <<'END';
-Error: Unknown method 'null'
+Error: Unknown method ''
 END
 
 test_err($title, $in, $job, $out);
@@ -130,7 +132,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Can't find 'group:' in netspoc
+Error: Can't find group:
 END
 
 test_err($title, $in, $job, $out);
@@ -518,48 +520,6 @@ $out = <<'END';
 END
 
 test_run($title, $in, $job, $out);
-
-############################################################
-$title = 'Added owner exists, but not found';
-############################################################
-
-$in = <<'END';
--- topology
-network:n1 = { ip = 10.1.1.0/24; owner = a; }
--- owner
-owner:a
-= {
- admins = a@example.com;
-}
-END
-
-$job = {
-    method => 'create_owner',
-    params => {
-        name    => 'a',
-        admins  => [ 'a@example.com' ],
-        'ok_if_exists' => 1,
-    }
-};
-
-$out = <<'END';
-Error: Duplicate definition of owner:a in netspoc/owner
-Aborted with 1 error(s)
----
-netspoc/owner
-@@ -1,4 +1,7 @@
--owner:a
--= {
-+owner:a = {
-+ admins = a@example.com;
-+}
-+
-+owner:a = {
-  admins = a@example.com;
- }
-END
-
-test_err($title, $in, $job, $out);
 
 ############################################################
 $title = 'Delete still referenced owner';
@@ -1209,7 +1169,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: IP address expected: '10.1.0.*'
+Error: Invalid IP address: '10.1.0.*'
 END
 
 test_err($title, $in, $job, $out);
@@ -1326,51 +1286,34 @@ $job = {
 };
 
 $out = <<'END';
-Error: Can't find network with 'ip = 10.1.0.0/21' in netspoc/
+Error: Can't find network with 'ip = 10.1.0.0/21'
 END
 
 test_err($title, $in, $job, $out);
 
 ############################################################
-$title = 'Add host, can\'t find network for found [auto] IP';
+$title = 'Add host, multiple [auto] networks';
 ############################################################
 
-my $many_comments = "#\n" x 50;
-$in = <<"END";
+$in = <<'END';
 -- topology
 network:a = {
-$many_comments
- ip = 10.1.0.0/21; }
-END
+ ip = 10.1.0.0/21;
+ nat:a = { hidden; }
+}
 
-$job = {
-    method => 'create_host',
-    params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
-    }
-};
-
-$out = <<'END';
-Error: Can't find network definition for 'ip = 10.1.0.0/21' in netspoc/topology
-END
-
-test_err($title, $in, $job, $out);
-
-############################################################
-$title = 'Add host, multiple [auto] networks in one file';
-############################################################
-
-$in = <<'END';
--- topology
-network:a = { ip = 10.1.0.0/21; nat:a = { hidden; } }
-network:b = { ip = 10.1.0.0/21; nat:b = { hidden; } }
+network:b = {
+ ip = 10.1.0.0/21;
+ nat:b = { hidden; }
+}
 
 router:r1 = {
- interface:a = { bind_nat = b; }
- interface:b = { bind_nat = a; }
+ interface:a = {
+  bind_nat = b;
+ }
+ interface:b = {
+  bind_nat = a;
+ }
 }
 END
 
@@ -1385,75 +1328,24 @@ $job = {
 };
 
 $out = <<'END';
-Error: Found multiple networks with 'ip = 10.1.0.0/21' in: netspoc/topology
-END
+Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
+Aborted with 1 error(s)
+---
+netspoc/topology
+@@ -1,11 +1,13 @@
+ network:a = {
+  ip = 10.1.0.0/21;
+  nat:a = { hidden; }
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
+ }
 
-test_err($title, $in, $job, $out);
+ network:b = {
+  ip = 10.1.0.0/21;
+  nat:b = { hidden; }
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
+ }
 
-############################################################
-$title = 'Add host, find NAT IP from [auto]';
-############################################################
-
-$in = <<'END';
--- topology
-network:a = { ip = 10.1.0.0/21; nat:a = { hidden; } }
-network:b = { ip = 10.2.0.0/21; nat:b = { ip = 10.1.0.0/21; } }
-network:c = { ip = 10.3.0.0/21; }
-
-router:r1 = {
- interface:a;
- interface:b = { bind_nat = a; }
- interface:c = { bind_nat = a, b; }
-}
-END
-
-$job = {
-    method => 'create_host',
-    params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
-    }
-};
-
-$out = <<'END';
-Error: Found multiple networks with 'ip = 10.1.0.0/21' in: netspoc/topology
-END
-
-test_err($title, $in, $job, $out);
-
-############################################################
-$title = 'Add host, multiple [auto] networks in multiple files';
-############################################################
-
-$in = <<'END';
--- topo1
-network:a = { ip = 10.1.0.0/21; nat:a = { hidden; } }
--- topo2
-network:b = { ip = 10.1.0.0/21; nat:b = { hidden; } }
--- topo3
-network:c = { ip = 10.1.0.0/21; nat:c = { hidden; } }
-
-router:r1 = {
- interface:a = { bind_nat = b, c; }
- interface:b = { bind_nat = a, c; }
- interface:c = { bind_nat = a, b; }
-}
-END
-
-$job = {
-    method => 'create_host',
-    params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
-    }
-};
-
-$out = <<'END';
-Error: Found multiple occurrences of 'ip = 10.1.0.0/21' in: netspoc/topo3 netspoc/topo1 netspoc/topo2
+ router:r1 = {
 END
 
 test_err($title, $in, $job, $out);
@@ -1471,6 +1363,9 @@ END
 
 $job = {
     method => 'multi_job',
+    params => {
+        jobs => []
+    }
 };
 
 $out = <<'END';
@@ -1625,7 +1520,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Can't find 'network:n2' in netspoc
+Error: Can't find network:n2
 END
 
 test_err($title, $in, $job, $out);
@@ -1804,7 +1699,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Can't find 'network:a'; exit; '' in netspoc
+Error: Can't find network:a'; exit; '
 END
 
 test_err($title, $in, $job, $out);
