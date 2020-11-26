@@ -2,6 +2,7 @@ package Test_API;
 
 use strict;
 use warnings;
+use Test::More;
 use File::Spec::Functions qw/ file_name_is_absolute splitpath catdir catfile /;
 use File::Path 'make_path';
 use File::Temp qw/ tempdir /;
