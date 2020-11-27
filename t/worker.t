@@ -62,8 +62,8 @@ sub test_worker {
     #@@ -5,7 +5,7 @@
     #
     # Remove single space in empty line.
-    my $diff = `diff -u -r unchanged netspoc | sed 's/^ \$//'`;
-    $diff =~ s/^diff -u -r unchanged\/[^ ]* //mg;
+    my $diff = `diff -u -r -N unchanged netspoc | sed 's/^ \$//'`;
+    $diff =~ s/^diff -u -r -N unchanged\/[^ ]* //mg;
     $diff =~ s/--- .*\n\+\+\+ .*\n//mg;
 
     # Combine messages from Netspoc and diff into one message,
@@ -1735,6 +1735,703 @@ netspoc/owner
 END
 
 test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service, create rule/ directory';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h3 = { ip = 10.1.1.3; }
+ host:h4 = { ip = 10.1.1.4; }
+ host:h5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+END
+
+$job = {
+    method => 'create_service',
+    params => {
+        name  => 's1',
+        objects => ['network:n2'],
+        rules => [
+            {
+                action    => 'permit',
+                user      => 'src',
+                objects   => ['host:h3', 'host:h5' ],
+                protocols => ['udp', 'tcp' ],
+            },
+            {
+                action    => 'permit',
+                user      => 'src',
+                objects   => ['host:h4' ],
+                protocols => ['tcp 90', 'tcp 80-85' ],
+            },
+            {
+                action    => 'deny',
+                user      => 'src',
+                objects   => ['network:n1'],
+                protocols => ['tcp 22' ],
+            },
+            {
+                action    => 'deny',
+                user      => 'dst',
+                objects   => ['host:h5' ],
+                protocols => ['udp', 'icmp 4' ],
+            },
+            ],
+    }
+};
+
+$out = <<'END';
+netspoc/rule/S
+@@ -0,0 +1,23 @@
++service:s1 = {
++ user = network:n2;
++ deny   src = user;
++        dst = network:n1;
++        prt = tcp 22;
++ deny   src = host:h5;
++        dst = user;
++        prt = icmp 4,
++              udp,
++              ;
++ permit src = user;
++        dst = host:h3,
++              host:h5,
++              ;
++        prt = tcp,
++              udp,
++              ;
++ permit src = user;
++        dst = host:h4;
++        prt = tcp 80-85,
++              tcp 90,
++              ;
++}
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service, insert sorted';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- rule/S
+service:s1 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 81;
+}
+service:s3 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 83;
+}
+END
+
+$job = {
+    method => 'multi_job',
+    params => {
+        jobs => [
+            {
+                method => 'create_service',
+                params => {
+                    name  => 's4',
+                    objects => ['network:n1'],
+                    rules => [
+                        {
+                            action    => 'permit',
+                            user      => 'src',
+                            objects   => ['network:n2' ],
+                            protocols => ['tcp 84' ],
+                        },
+                        ]
+                },
+            },
+            {
+                method => 'create_service',
+                params => {
+                    name  => 's2',
+                    objects => ['network:n1'],
+                    rules => [
+                        {
+                            action    => 'permit',
+                            user      => 'src',
+                            objects   => ['network:n2' ],
+                            protocols => ['tcp 82' ],
+                        },
+                        ]
+                },
+            }
+            ]
+    }
+};
+$out = <<'END';
+netspoc/rule/S
+@@ -4,9 +4,24 @@
+         dst = network:n2;
+         prt = tcp 81;
+ }
++
++service:s2 = {
++ user = network:n1;
++ permit src = user;
++        dst = network:n2;
++        prt = tcp 82;
++}
++
+ service:s3 = {
+  user = network:n1;
+  permit src = user;
+         dst = network:n2;
+         prt = tcp 83;
+ }
++
++service:s4 = {
++ user = network:n1;
++ permit src = user;
++        dst = network:n2;
++        prt = tcp 84;
++}
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Delete service ';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- service
+service:s1 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'delete_service',
+    params => {
+        name   => 's1',
+    }
+};
+
+$out = <<'END';
+netspoc/service
+@@ -1,6 +0,0 @@
+-service:s1 = {
+- user = network:n1;
+- permit src = user;
+-        dst = network:n2;
+-        prt = tcp 80;
+-}
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service user';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h4 = { ip = 10.1.1.4; }
+ host:h5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- service
+service:s1 = {
+ user = host:h5;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'add_service_user',
+    params => {
+        name   => 's1',
+        object => 'host:h4',
+    }
+};
+
+$out = <<'END';
+netspoc/service
+@@ -1,5 +1,7 @@
+ service:s1 = {
+- user = host:h5;
++ user = host:h4,
++        host:h5,
++        ;
+  permit src = user;
+         dst = network:n2;
+         prt = tcp 80;
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Add user to unknown service';
+############################################################
+
+$in = <<'END';
+--netspoc
+network:n1 = { ip = 10.1.1.0/24; }
+END
+
+$job = {
+    method => 'add_service_user',
+    params => {
+        name   => 's1',
+        object => 'host:h4',
+    }
+};
+
+$out = <<'END';
+Error: Can't find service:s1
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Delete service user';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h4 = { ip = 10.1.1.4; }
+ host:h5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- service
+service:s1 = {
+ user = host:h4,
+        host:h5,
+        ;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'delete_service_user',
+    params => {
+        name   => 's1',
+        object => 'host:h4',
+    }
+};
+
+$out = <<'END';
+netspoc/service
+@@ -1,7 +1,5 @@
+ service:s1 = {
+- user = host:h4,
+-        host:h5,
+-        ;
++ user = host:h5;
+  permit src = user;
+         dst = network:n2;
+         prt = tcp 80;
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Replace service user';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h4 = { ip = 10.1.1.4; }
+ host:h5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- service
+service:s1 = {
+ user = host:h5;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'multi_job',
+    params => {
+        jobs => [
+            {
+                method => 'add_service_user',
+                params => {
+                    name   => 's1',
+                    object => 'host:h4',
+                }
+            },
+            {
+                method => 'delete_service_user',
+                params => {
+                    name   => 's1',
+                    object => 'host:h5',
+                }
+            }
+        ]
+    }
+};
+
+$out = <<'END';
+netspoc/service
+@@ -1,5 +1,5 @@
+ service:s1 = {
+- user = host:h5;
++ user = host:h4;
+  permit src = user;
+         dst = network:n2;
+         prt = tcp 80;
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Change service rules';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h3 = { ip = 10.1.1.3; }
+ host:h4 = { ip = 10.1.1.4; }
+ host:h5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- service
+service:s1 = {
+ user = network:n2;
+ permit src = user;
+        dst = host:h3;
+        prt = tcp 80;
+ permit src = user;
+        dst = host:h4,
+              host:h5,
+              ;
+        prt = tcp 90, tcp 91;
+}
+END
+
+$job = {
+    method => 'multi_job',
+    params => {
+        jobs => [
+            {
+                method => 'add_service_protocol',
+                params => {
+                    name     => 's1',
+                    rule_num => 1,
+                    prt      => 'udp 80',
+                }
+            },
+            {
+                method => 'delete_service_protocol',
+                params => {
+                    name     => 's1',
+                    rule_num => 2,
+                    prt      => 'tcp 90',
+                }
+            },
+            {
+                method => 'add_service_server',
+                params => {
+                    name     => 's1',
+                    rule_num => 1,
+                    object   => 'host:h4',
+                }
+            },
+            {
+                method => 'delete_service_server',
+                params => {
+                    name     => 's1',
+                    rule_num => 2,
+                    object   => 'host:h4',
+                }
+            }
+        ]
+    }
+};
+
+$out = <<'END';
+netspoc/service
+@@ -1,11 +1,13 @@
+ service:s1 = {
+  user = network:n2;
+  permit src = user;
+-        dst = host:h3;
+-        prt = tcp 80;
+- permit src = user;
+-        dst = host:h4,
+-              host:h5,
++        dst = host:h3,
++              host:h4,
++              ;
++        prt = tcp 80,
++              udp 80,
+               ;
+-        prt = tcp 90, tcp 91;
++ permit src = user;
++        dst = host:h5;
++        prt = tcp 91;
+ }
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Change unknown rule';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+
+service:s1 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'add_service_protocol',
+    params => {
+        name     => 's1',
+        rule_num => 9,
+        prt      => 'tcp 90',
+    }
+};
+
+$out = <<'END';
+Error: Invalid rule_num 9, have 1 rules
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Add and delete permit rules';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h3 = { ip = 10.1.1.3; }
+ host:h4 = { ip = 10.1.1.4; }
+ host:h5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- service
+service:s1 = {
+ user = network:n2;
+ permit src = user;
+        dst = host:h3;
+        prt = tcp 80;
+ permit src = user;
+        dst = host:h4;
+        prt = tcp 90;
+}
+END
+
+$job = {
+    method => 'multi_job',
+    params => {
+        jobs => [
+            {
+                method => 'add_service_rule',
+                params => {
+                    name      => 's1',
+                    action    => 'permit',
+                    user      => 'src',
+                    objects   => ['host:h5', 'interface:r1.n2' ],
+                    protocols => ['udp 123', 'icmp' ],
+                }
+            },
+            {
+                method => 'delete_service_rule',
+                params => {
+                    name     => 's1',
+                    rule_num => 2,
+                }
+            },
+        ]
+    }
+};
+
+$out = <<'END';
+netspoc/service
+@@ -4,6 +4,10 @@
+         dst = host:h3;
+         prt = tcp 80;
+  permit src = user;
+-        dst = host:h4;
+-        prt = tcp 90;
++        dst = host:h5,
++              interface:r1.n2,
++              ;
++        prt = udp 123,
++              icmp,
++              ;
+ }
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Add deny rule';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h3 = { ip = 10.1.1.3; }
+ host:h4 = { ip = 10.1.1.4; }
+ host:h5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+-- service
+service:s1 = {
+ user = network:n2;
+ deny   src = user;
+        dst = network:n1;
+        prt = tcp 22;
+ permit src = user;
+        dst = host:h3;
+        prt = tcp;
+ permit src = user;
+        dst = host:h4;
+        prt = tcp 90;
+}
+END
+
+$job = {
+    method => 'multi_job',
+    params => {
+        jobs => [
+            {
+                method => 'add_service_rule',
+                params => {
+                    name      => 's1',
+                    action    => 'deny',
+                    user      => 'dst',
+                    objects   => ['host:h5' ],
+                    protocols => ['udp', 'icmp 4' ],
+                }
+            },
+        ]
+    }
+};
+
+$out = <<'END';
+netspoc/service
+@@ -3,6 +3,11 @@
+  deny   src = user;
+         dst = network:n1;
+         prt = tcp 22;
++ deny   src = host:h5;
++        dst = user;
++        prt = udp,
++              icmp 4,
++              ;
+  permit src = user;
+         dst = host:h3;
+         prt = tcp;
+END
+
+test_run($title, $in, $job, $out);
 
 ############################################################
 done_testing;

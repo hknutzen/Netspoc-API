@@ -75,11 +75,27 @@ func readNetspoc() *state {
 	return s
 }
 
+func (s *state) getFileIndex(file string) int {
+	idx := -1
+	for i, f := range s.files {
+		if f == file {
+			idx = i
+		}
+	}
+	if idx == -1 {
+		idx = len(s.files)
+		s.files = append(s.files, file)
+		s.fileNodes = append(s.fileNodes, nil)
+		s.sources = append(s.sources, nil)
+	}
+	return idx
+}
+
 func (s *state) modifyAST(f func(ast.Toplevel) bool) bool {
 	someModified := false
-	for i, l := range s.fileNodes {
+	for i, nodes := range s.fileNodes {
 		modified := false
-		for _, n := range l {
+		for _, n := range nodes {
 			if f(n) {
 				modified = true
 			}
@@ -90,6 +106,19 @@ func (s *state) modifyAST(f func(ast.Toplevel) bool) bool {
 		}
 	}
 	return someModified
+}
+
+func (s *state) modifyASTObj(name string, f func(ast.Toplevel)) {
+	found := s.modifyAST(func(toplevel ast.Toplevel) bool {
+		if name == toplevel.GetName() {
+			f(toplevel)
+			return true
+		}
+		return false
+	})
+	if !found {
+		abort.Msg("Can't find %s", name)
+	}
 }
 
 func (s *state) printNetspoc() {
@@ -111,12 +140,22 @@ type job struct {
 }
 
 var handler = map[string]func(*state, *job){
-	"create_host":  (*state).createHost,
-	"modify_host":  (*state).modifyHost,
-	"create_owner": (*state).createOwner,
-	"modify_owner": (*state).modifyOwner,
-	"delete_owner": (*state).deleteOwner,
-	"add_to_group": (*state).addToGroup,
+	"create_host":             (*state).createHost,
+	"modify_host":             (*state).modifyHost,
+	"create_owner":            (*state).createOwner,
+	"modify_owner":            (*state).modifyOwner,
+	"delete_owner":            (*state).deleteOwner,
+	"add_to_group":            (*state).addToGroup,
+	"create_service":          (*state).createService,
+	"delete_service":          (*state).deleteService,
+	"add_service_user":        (*state).addServiceUser,
+	"delete_service_user":     (*state).deleteServiceUser,
+	"add_service_protocol":    (*state).addServiceProtocol,
+	"delete_service_protocol": (*state).deleteServiceProtocol,
+	"add_service_server":      (*state).addServiceServer,
+	"delete_service_server":   (*state).deleteServiceServer,
+	"add_service_rule":        (*state).addServiceRule,
+	"delete_service_rule":     (*state).deleteServiceRule,
 }
 
 func (s *state) doJobFile(path string) {
@@ -261,9 +300,9 @@ func (s *state) modifyHost(j *job) {
 	}
 }
 
-func getOwnerPath(owner string) string {
+func getOwnerPath(name string) string {
 	file := "netspoc/owner"
-	if strings.HasPrefix(owner, "DA_TOKEN_") {
+	if strings.HasPrefix(name, "DA_TOKEN_") {
 		file += "-token"
 	}
 	return file
@@ -277,56 +316,29 @@ func (s *state) createOwner(j *job) {
 		OkIfExists int      `json:"ok_if_exists"`
 	}
 	getParams(j, &p)
-	owner := p.Name
-	file := getOwnerPath(owner)
-	idx := -1
-	for i, f := range s.files {
-		if f == file {
-			idx = i
+	name := "owner:" + p.Name
+	file := getOwnerPath(p.Name)
+	idx := s.getFileIndex(file)
+	nodes := s.fileNodes[idx]
+	// Do nothing if owner already exists.
+	if p.OkIfExists != 0 {
+		for _, toplevel := range nodes {
+			if name == toplevel.GetName() {
+				return
+			}
 		}
 	}
-	if idx == -1 {
-		idx = len(s.files)
-		s.files = append(s.files, file)
-		s.fileNodes = append(s.fileNodes, nil)
-		s.sources = append(s.sources, nil)
-	}
-
-	nodes := s.fileNodes[idx]
-	cp := make([]ast.Toplevel, 0, len(nodes)+1)
-	// Insert new owner.
-	inserted := false
-	insert := func() {
+	s.createToplevel(name, file, func() ast.Toplevel {
 		obj := new(ast.TopStruct)
-		obj.Name = "owner:" + owner
+		obj.Name = name
 		aAttr := createAttr("admins", p.Admins)
 		obj.Attributes = append(obj.Attributes, aAttr)
 		if p.Watchers != nil {
 			wAttr := createAttr("watchers", p.Watchers)
 			obj.Attributes = append(obj.Attributes, wAttr)
 		}
-		cp = append(cp, obj)
-	}
-	oLower := strings.ToLower(owner)
-	for i2, toplevel := range nodes {
-		if n, ok := toplevel.(*ast.TopStruct); ok {
-			typ, name := getTypeName(n.Name)
-			if typ == "owner" && strings.ToLower(name) >= oLower {
-				if !(p.OkIfExists != 0 && name == owner) {
-					insert()
-				}
-				inserted = true
-				cp = append(cp, nodes[i2:]...)
-				break
-			}
-		}
-		cp = append(cp, toplevel)
-	}
-	if !inserted {
-		insert()
-	}
-	s.fileNodes[idx] = cp
-	s.changed[file] = true
+		return obj
+	})
 }
 
 func (s *state) modifyOwner(j *job) {
@@ -337,19 +349,11 @@ func (s *state) modifyOwner(j *job) {
 	}
 	getParams(j, &p)
 	owner := "owner:" + p.Name
-	found := s.modifyAST(func(toplevel ast.Toplevel) bool {
-		if n, ok := toplevel.(*ast.TopStruct); ok {
-			if owner == toplevel.GetName() {
-				changeTopAttr(n, "admins", p.Admins)
-				changeTopAttr(n, "watchers", p.Watchers)
-				return true
-			}
-		}
-		return false
+	s.modifyASTObj(owner, func(toplevel ast.Toplevel) {
+		n := toplevel.(*ast.TopStruct)
+		changeTopAttr(n, "admins", p.Admins)
+		changeTopAttr(n, "watchers", p.Watchers)
 	})
-	if !found {
-		abort.Msg("Can't find %s", owner)
-	}
 }
 
 func (s *state) deleteOwner(j *job) {
@@ -357,13 +361,351 @@ func (s *state) deleteOwner(j *job) {
 		Name string `json:"name"`
 	}
 	getParams(j, &p)
-	owner := "owner:" + p.Name
+	name := "owner:" + p.Name
+	s.deleteToplevel(name)
+}
+
+func (s *state) addToGroup(j *job) {
+	var p struct {
+		Name   string `json:"name"`
+		Object string `json:"object"`
+	}
+	getParams(j, &p)
+	group := "group:" + p.Name
+	object := p.Object
+	s.modifyASTObj(group, func(toplevel ast.Toplevel) {
+		n := toplevel.(*ast.TopList)
+
+		// Add object.
+		typ, name := getTypeName(object)
+		obj := &ast.NamedRef{TypedElt: ast.TypedElt{Type: typ}, Name: name}
+		n.Elements = append(n.Elements, obj)
+
+		// Sort list of objects.
+		n.Order()
+	})
+}
+
+func getServicePath(name string) string {
+	file := "netspoc/rule/"
+	if !fileop.IsDir(file) {
+		err := os.Mkdir(file, 0777)
+		if err != nil {
+			abort.Msg("Can't %v", err)
+		}
+	}
+	s0 := strings.ToUpper(name[0:1])
+	c0 := s0[0]
+	if 'A' <= c0 && c0 <= 'Z' || '0' <= c0 && c0 <= '9' {
+		file += s0
+	} else {
+		file += "other"
+	}
+	return file
+}
+
+type jsonRule struct {
+	Action    string   `json:"action"`
+	User      string   `json:"user"`
+	Objects   []string `json:"objects"`
+	Protocols []string `json:"protocols"`
+}
+
+func (s *state) createService(j *job) {
+	var p struct {
+		Name    string   `json:"name"`
+		Objects []string `json:"objects"`
+		Rules   []jsonRule
+	}
+	getParams(j, &p)
+	name := "service:" + p.Name
+	file := getServicePath(name)
+	s.createToplevel(name, file, func() ast.Toplevel {
+		sv := new(ast.Service)
+		sv.Name = name
+		var users []ast.Element
+		for _, object := range p.Objects {
+			typ, name := getTypeName(object)
+			obj := new(ast.NamedRef)
+			obj.Type = typ
+			obj.Name = name
+			users = append(users, obj)
+		}
+		sv.User = &ast.NamedUnion{Name: "user", Elements: users}
+		for _, jRule := range p.Rules {
+			addSvRule(sv, &jRule)
+		}
+		sv.Order()
+		return sv
+	})
+}
+
+func (s *state) deleteService(j *job) {
+	var p struct {
+		Name string `json:"name"`
+	}
+	getParams(j, &p)
+	name := "service:" + p.Name
+	s.deleteToplevel(name)
+}
+
+func (s *state) addServiceUser(j *job) {
+	var p struct {
+		Name   string `json:"name"`
+		Object string `json:"object"`
+	}
+	getParams(j, &p)
+	service := "service:" + p.Name
+	object := p.Object
+	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
+		sv := toplevel.(*ast.Service)
+
+		// Add object.
+		typ, name := getTypeName(object)
+		obj := new(ast.NamedRef)
+		obj.Type = typ
+		obj.Name = name
+		sv.User.Elements = append(sv.User.Elements, obj)
+
+		// Sort list of objects.
+		sv.Order()
+	})
+}
+
+func (s *state) deleteServiceUser(j *job) {
+	var p struct {
+		Name   string `json:"name"`
+		Object string `json:"object"`
+	}
+	getParams(j, &p)
+	service := "service:" + p.Name
+	object := p.Object
+	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
+		sv := toplevel.(*ast.Service)
+		typ, name := getTypeName(object)
+		l := sv.User.Elements
+		for i, obj := range l {
+			if obj.GetType() == typ && obj.GetName() == name {
+				sv.User.Elements = append(l[:i], l[i+1:]...)
+				return
+			}
+		}
+		abort.Msg("Can't find %s in 'user' of %s", object, service)
+	})
+}
+
+func (s *state) addServiceProtocol(j *job) {
+	var p struct {
+		Name    string `json:"name"`
+		RuleNum int    `json:"rule_num"`
+		Prt     string `json:"prt"`
+	}
+	getParams(j, &p)
+	service := "service:" + p.Name
+	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
+		sv := toplevel.(*ast.Service)
+		rule := getRule(sv, p.RuleNum)
+		rule.Prt.ValueList = append(rule.Prt.ValueList, &ast.Value{Value: p.Prt})
+		// Sort list of protocols.
+		sv.Order()
+	})
+}
+
+func (s *state) deleteServiceProtocol(j *job) {
+	var p struct {
+		Name    string `json:"name"`
+		RuleNum int    `json:"rule_num"`
+		Prt     string `json:"prt"`
+	}
+	getParams(j, &p)
+	service := "service:" + p.Name
+	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
+		sv := toplevel.(*ast.Service)
+		rule := getRule(sv, p.RuleNum)
+		l := rule.Prt.ValueList
+		for i, v := range l {
+			if v.Value == p.Prt {
+				rule.Prt.ValueList = append(l[:i], l[i+1:]...)
+				return
+			}
+		}
+		abort.Msg("Can't find '%s' in rule %d", p.Prt, p.RuleNum)
+	})
+}
+
+func (s *state) addServiceServer(j *job) {
+	var p struct {
+		Name    string `json:"name"`
+		RuleNum int    `json:"rule_num"`
+		Object  string `json:"object"`
+	}
+	getParams(j, &p)
+	service := "service:" + p.Name
+	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
+		sv := toplevel.(*ast.Service)
+		rule := getRule(sv, p.RuleNum)
+		typ, name := getTypeName(p.Object)
+		obj := &ast.NamedRef{TypedElt: ast.TypedElt{Type: typ}, Name: name}
+		add := func(x *ast.NamedUnion) {
+			l := x.Elements
+			// Don't add at user side.
+			if len(l) == 1 {
+				if _, ok := l[0].(*ast.User); ok {
+					return
+				}
+			}
+			x.Elements = append(l, obj)
+		}
+		add(rule.Src)
+		add(rule.Dst)
+		// Sort list of servers.
+		sv.Order()
+	})
+}
+
+func (s *state) deleteServiceServer(j *job) {
+	var p struct {
+		Name    string `json:"name"`
+		RuleNum int    `json:"rule_num"`
+		Object  string `json:"object"`
+	}
+	getParams(j, &p)
+	service := "service:" + p.Name
+	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
+		sv := toplevel.(*ast.Service)
+		rule := getRule(sv, p.RuleNum)
+		typ, name := getTypeName(p.Object)
+		found := false
+		del := func(x *ast.NamedUnion) {
+			l := x.Elements
+			for i, obj := range l {
+				if obj.GetType() == typ && obj.GetName() == name {
+					x.Elements = append(l[:i], l[i+1:]...)
+					found = true
+					return
+				}
+			}
+		}
+		del(rule.Src)
+		del(rule.Dst)
+		if !found {
+			abort.Msg("Can't find %s in rule %d", p.Object, p.RuleNum)
+		}
+		// Sort list of servers.
+		sv.Order()
+	})
+}
+
+func (s *state) addServiceRule(j *job) {
+	var p struct {
+		Name string `json:"name"`
+		jsonRule
+	}
+	getParams(j, &p)
+	service := "service:" + p.Name
+	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
+		sv := toplevel.(*ast.Service)
+		addSvRule(sv, &p.jsonRule)
+	})
+}
+
+func (s *state) deleteServiceRule(j *job) {
+	var p struct {
+		Name    string `json:"name"`
+		RuleNum int    `json:"rule_num"`
+	}
+	getParams(j, &p)
+	service := "service:" + p.Name
+	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
+		sv := toplevel.(*ast.Service)
+		idx := getRuleIdx(sv, p.RuleNum)
+		sv.Rules = append(sv.Rules[:idx], sv.Rules[idx+1:]...)
+	})
+}
+
+func addSvRule(sv *ast.Service, p *jsonRule) {
+	rule := new(ast.Rule)
+	switch p.Action {
+	case "deny":
+		rule.Deny = true
+	case "permit":
+	default:
+		abort.Msg("Invalid 'Action': '%s'", p.Action)
+	}
+	rule.Src = &ast.NamedUnion{Name: "src"}
+	rule.Dst = &ast.NamedUnion{Name: "dst"}
+	var objList []ast.Element
+	for _, obj := range p.Objects {
+		typ, name := getTypeName(obj)
+		objList = append(objList,
+			&ast.NamedRef{TypedElt: ast.TypedElt{Type: typ}, Name: name})
+	}
+	usr := []ast.Element{&ast.User{}}
+	switch p.User {
+	case "src":
+		rule.Src.Elements = usr
+		rule.Dst.Elements = objList
+	case "dst":
+		rule.Src.Elements = objList
+		rule.Dst.Elements = usr
+	default:
+		abort.Msg("Invalid 'User': '%s'", p.User)
+	}
+	var prtList []*ast.Value
+	for _, prt := range p.Protocols {
+		prtList = append(prtList, &ast.Value{Value: prt})
+	}
+	rule.Prt = &ast.Attribute{Name: "prt", ValueList: prtList}
+	l := sv.Rules
+	if rule.Deny {
+		// Append in front after existing deny rules.
+		for i, r := range l {
+			if !r.Deny {
+				sv.Rules = make([]*ast.Rule, 0, len(l)+1)
+				sv.Rules = append(sv.Rules, l[:i]...)
+				sv.Rules = append(sv.Rules, rule)
+				sv.Rules = append(sv.Rules, l[i:]...)
+				break
+			}
+		}
+	} else {
+		sv.Rules = append(l, rule)
+	}
+}
+
+func (s *state) createToplevel(
+	fullName, file string, create func() ast.Toplevel) {
+
+	idx := s.getFileIndex(file)
+	nodes := s.fileNodes[idx]
+	cp := make([]ast.Toplevel, 0, len(nodes)+1)
+	inserted := false
+	typ, name := getTypeName(fullName)
+	nLower := strings.ToLower(name)
+	for i, toplevel := range nodes {
+		typ2, name2 := getTypeName(toplevel.GetName())
+		if typ2 == typ && strings.ToLower(name2) > nLower {
+			cp = append(cp, create())
+			cp = append(cp, nodes[i:]...)
+			inserted = true
+			break
+		}
+		cp = append(cp, toplevel)
+	}
+	if !inserted {
+		cp = append(cp, create())
+	}
+	s.fileNodes[idx] = cp
+	s.changed[file] = true
+}
+
+func (s *state) deleteToplevel(name string) {
 	found := false
 FILE:
 	for i, nodes := range s.fileNodes {
 		cp := make([]ast.Toplevel, 0, len(nodes))
 		for _, toplevel := range nodes {
-			if owner == toplevel.GetName() {
+			if name == toplevel.GetName() {
 				found = true
 			} else {
 				cp = append(cp, toplevel)
@@ -376,38 +718,9 @@ FILE:
 		}
 	}
 	if !found {
-		abort.Msg("Can't find %s", owner)
+		abort.Msg("Can't find %s", name)
 	}
 
-}
-
-func (s *state) addToGroup(j *job) {
-	var p struct {
-		Name   string `json:"name"`
-		Object string `json:"object"`
-	}
-	getParams(j, &p)
-	group := "group:" + p.Name
-	object := p.Object
-	found := s.modifyAST(func(toplevel ast.Toplevel) bool {
-		if n, ok := toplevel.(*ast.TopList); ok {
-			if group == toplevel.GetName() {
-
-				// Add object.
-				typ, name := getTypeName(object)
-				obj := &ast.NamedRef{TypedElt: ast.TypedElt{Type: typ}, Name: name}
-				n.Elements = append(n.Elements, obj)
-
-				// Sort list of objects.
-				n.Order()
-				return true
-			}
-		}
-		return false
-	})
-	if !found {
-		abort.Msg("Can't find %s", group)
-	}
 }
 
 func getParams(j *job, p interface{}) {
@@ -417,6 +730,19 @@ func getParams(j *job, p interface{}) {
 			panic(err)
 		}
 	}
+}
+
+func getRule(sv *ast.Service, num int) *ast.Rule {
+	return sv.Rules[getRuleIdx(sv, num)]
+}
+
+func getRuleIdx(sv *ast.Service, num int) int {
+	idx := num - 1
+	n := len(sv.Rules)
+	if idx < 0 || idx >= n {
+		abort.Msg("Invalid rule_num %d, have %d rules", idx+1, n)
+	}
+	return idx
 }
 
 func changeTopAttr(obj *ast.TopStruct, name string, l []string) {
@@ -520,7 +846,7 @@ func getAttr(n *ast.Network, name string) string {
 func getTypeName(v string) (string, string) {
 	parts := strings.SplitN(v, ":", 2)
 	if len(parts) != 2 {
-		return "", ""
+		abort.Msg("Expected typed name but got '%s'", v)
 	}
 	return parts[0], parts[1]
 }
