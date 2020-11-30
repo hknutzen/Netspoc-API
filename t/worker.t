@@ -1761,31 +1761,31 @@ $job = {
     method => 'create_service',
     params => {
         name  => 's1',
-        objects => ['network:n2'],
+        user => 'network:n2',
         rules => [
             {
-                action    => 'permit',
-                user      => 'src',
-                objects   => ['host:h3', 'host:h5' ],
-                protocols => ['udp', 'tcp' ],
+                action => 'permit',
+                src    => 'user',
+                dst    => 'host:[network:n1] &! host:h4, interface:r1.n1',
+                prt    => 'udp, tcp',
             },
             {
-                action    => 'permit',
-                user      => 'src',
-                objects   => ['host:h4' ],
-                protocols => ['tcp 90', 'tcp 80-85' ],
+                action => 'permit',
+                src    => 'user',
+                dst    => 'host:h4',
+                prt    => 'tcp 90,    tcp 80-85',
             },
             {
-                action    => 'deny',
-                user      => 'src',
-                objects   => ['network:n1'],
-                protocols => ['tcp 22' ],
+                action => 'deny',
+                src    => 'user',
+                dst    => 'network:n1',
+                prt    => 'tcp 22',
             },
             {
-                action    => 'deny',
-                user      => 'dst',
-                objects   => ['host:h5' ],
-                protocols => ['udp', 'icmp 4' ],
+                action => 'deny',
+                src    => 'host:h5',
+                dst    => 'user',
+                prt    => 'udp, icmp 4',
             },
             ],
     }
@@ -1793,7 +1793,7 @@ $job = {
 
 $out = <<'END';
 netspoc/rule/S
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,25 @@
 +service:s1 = {
 + user = network:n2;
 + deny   src = user;
@@ -1805,8 +1805,10 @@ netspoc/rule/S
 +              udp,
 +              ;
 + permit src = user;
-+        dst = host:h3,
-+              host:h5,
++        dst = interface:r1.n1,
++              host:[network:n1]
++              &! host:h4
++              ,
 +              ;
 +        prt = tcp,
 +              udp,
@@ -1820,6 +1822,183 @@ netspoc/rule/S
 END
 
 test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service, complex user';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24;
+ host:h3 = { ip = 10.1.1.3; }
+ host:h4 = { ip = 10.1.1.4; }
+ host:h5 = { ip = 10.1.1.5; }
+}
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+END
+
+$job = {
+    method => 'create_service',
+    params => {
+        name  => 's1',
+        user => 'host:[network:n1] &! host:h4, interface:r1.n1',
+        rules => [
+            {
+                action => 'permit',
+                src    => 'user',
+                dst    => 'network:n2',
+                prt    => 'tcp 80',
+            },
+            ],
+    }
+};
+
+$out = <<'END';
+netspoc/rule/S
+@@ -0,0 +1,10 @@
++service:s1 = {
++ user = interface:r1.n1,
++        host:[network:n1]
++        &! host:h4
++        ,
++        ;
++ permit src = user;
++        dst = network:n2;
++        prt = tcp 80;
++}
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service, invalid action';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+END
+
+$job = {
+    method => 'create_service',
+    params => {
+        name  => 's1',
+        user  => 'network:n1',
+        rules => [
+            {
+                action => 'allow',
+                src    => 'user',
+                dst    => 'network:n2',
+                prt    => 'tcp 80',
+            }]
+    }
+};
+
+$out = <<'END';
+Error: Invalid 'Action': 'allow'
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service, invalid user';
+############################################################
+
+$job = {
+    method => 'create_service',
+    params => {
+        name  => 's1',
+        user  => 'network:n1',
+        rules => [
+            {
+                action => 'permit',
+                src    => '_user_',
+                dst    => 'network:n2',
+                prt    => 'tcp 80',
+            }]
+    }
+};
+
+$out = <<'END';
+Syntax error: Typed name expected at line 1 of command line, near "--HERE-->_user_"
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service, invalid object type';
+############################################################
+
+$job = {
+    method => 'create_service',
+    params => {
+        name  => 's1',
+        user  => 'network:n1',
+        rules => [
+            {
+                action => 'permit',
+                src    => 'user',
+                dst    => 'net:n2',
+                prt    => 'tcp 80',
+            }]
+    }
+};
+
+$out = <<'END';
+Syntax error: Unknown element type at line 1 of command line, near "--HERE-->net:n2"
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service, invalid protocol';
+############################################################
+
+$job = {
+    method => 'create_service',
+    params => {
+        name  => 's1',
+        user  => 'network:n1',
+        rules => [
+            {
+                action => 'permit',
+                src    => 'user',
+                dst    => 'network:n2',
+                prt    => 'udp6',
+            }]
+    }
+};
+
+$out = <<'END';
+Error: Unknown protocol in 'udp6' of service:s1
+Aborted with 1 error(s)
+---
+netspoc/rule/S
+@@ -0,0 +1,6 @@
++service:s1 = {
++ user = network:n1;
++ permit src = user;
++        dst = network:n2;
++        prt = udp6;
++}
+END
+
+test_err($title, $in, $job, $out);
 
 ############################################################
 $title = 'Add service, insert sorted';
@@ -1859,13 +2038,13 @@ $job = {
                 method => 'create_service',
                 params => {
                     name  => 's4',
-                    objects => ['network:n1'],
+                    user  => 'network:n1',
                     rules => [
                         {
-                            action    => 'permit',
-                            user      => 'src',
-                            objects   => ['network:n2' ],
-                            protocols => ['tcp 84' ],
+                            action => 'permit',
+                            src    => 'user',
+                            dst    => 'network:n2',
+                            prt    => 'tcp 84',
                         },
                         ]
                 },
@@ -1874,13 +2053,13 @@ $job = {
                 method => 'create_service',
                 params => {
                     name  => 's2',
-                    objects => ['network:n1'],
+                    user  => 'network:n1',
                     rules => [
                         {
-                            action    => 'permit',
-                            user      => 'src',
-                            objects   => ['network:n2' ],
-                            protocols => ['tcp 82' ],
+                            action => 'permit',
+                            src    => 'user',
+                            dst    => 'network:n2',
+                            prt    => 'tcp 82',
                         },
                         ]
                 },
@@ -1920,7 +2099,7 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
-$title = 'Delete service ';
+$title = 'Delete service';
 ############################################################
 
 $in = <<'END';
@@ -1946,7 +2125,7 @@ END
 $job = {
     method => 'delete_service',
     params => {
-        name   => 's1',
+        name => 's1',
     }
 };
 
@@ -1964,7 +2143,7 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
-$title = 'Add service user';
+$title = 'Add to user';
 ############################################################
 
 $in = <<'END';
@@ -1972,6 +2151,7 @@ $in = <<'END';
 network:n1 = { ip = 10.1.1.0/24;
  host:h4 = { ip = 10.1.1.4; }
  host:h5 = { ip = 10.1.1.5; }
+ host:h6 = { ip = 10.1.1.6; }
 }
 network:n2 = { ip = 10.1.2.0/24; }
 
@@ -1991,20 +2171,21 @@ service:s1 = {
 END
 
 $job = {
-    method => 'add_service_user',
+    method => 'add_to_user',
     params => {
-        name   => 's1',
-        object => 'host:h4',
+        service => 's1',
+        user    => 'host:h4, host:h6',
     }
 };
 
 $out = <<'END';
 netspoc/service
-@@ -1,5 +1,7 @@
+@@ -1,5 +1,8 @@
  service:s1 = {
 - user = host:h5;
 + user = host:h4,
 +        host:h5,
++        host:h6,
 +        ;
   permit src = user;
          dst = network:n2;
@@ -2014,7 +2195,7 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
-$title = 'Add user to unknown service';
+$title = 'Add to user in unknown service';
 ############################################################
 
 $in = <<'END';
@@ -2023,10 +2204,10 @@ network:n1 = { ip = 10.1.1.0/24; }
 END
 
 $job = {
-    method => 'add_service_user',
+    method => 'add_to_user',
     params => {
-        name   => 's1',
-        object => 'host:h4',
+        service => 's1',
+        user    => 'host:h4',
     }
 };
 
@@ -2037,7 +2218,44 @@ END
 test_err($title, $in, $job, $out);
 
 ############################################################
-$title = 'Delete service user';
+$title = 'Delete unknown element from user';
+############################################################
+
+$in = <<'END';
+--all
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+service:s1 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'delete_from_user',
+    params => {
+        service => 's1',
+        user    => 'host:[network:n1, network:n2]',
+    }
+};
+
+$out = <<'END';
+Error: Can't find 'host:[network:n1,network:n2,]' in 'user' of service:s1
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Delete from user';
 ############################################################
 
 $in = <<'END';
@@ -2056,8 +2274,8 @@ router:r1 = {
 }
 -- service
 service:s1 = {
- user = host:h4,
-        host:h5,
+ user = host:[network:n1],
+        interface:r1.n2,
         ;
  permit src = user;
         dst = network:n2;
@@ -2066,10 +2284,10 @@ service:s1 = {
 END
 
 $job = {
-    method => 'delete_service_user',
+    method => 'delete_from_user',
     params => {
-        name   => 's1',
-        object => 'host:h4',
+        service => 's1',
+        user    => 'host:[ network:n1 ]',
     }
 };
 
@@ -2077,10 +2295,10 @@ $out = <<'END';
 netspoc/service
 @@ -1,7 +1,5 @@
  service:s1 = {
-- user = host:h4,
--        host:h5,
+- user = host:[network:n1],
+-        interface:r1.n2,
 -        ;
-+ user = host:h5;
++ user = interface:r1.n2;
   permit src = user;
          dst = network:n2;
          prt = tcp 80;
@@ -2089,7 +2307,7 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
-$title = 'Replace service user';
+$title = 'Replace in user';
 ############################################################
 
 $in = <<'END';
@@ -2120,17 +2338,17 @@ $job = {
     params => {
         jobs => [
             {
-                method => 'add_service_user',
+                method => 'add_to_user',
                 params => {
-                    name   => 's1',
-                    object => 'host:h4',
+                    service => 's1',
+                    user    => 'host:h4',
                 }
             },
             {
-                method => 'delete_service_user',
+                method => 'delete_from_user',
                 params => {
-                    name   => 's1',
-                    object => 'host:h5',
+                    service => 's1',
+                    user    => 'host:h5',
                 }
             }
         ]
@@ -2151,7 +2369,45 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
-$title = 'Change service rules';
+$title = 'Delete unknown server in rule';
+############################################################
+
+$in = <<'END';
+--all
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+service:s1 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'delete_from_rule',
+    params => {
+        service  => 's1',
+        rule_num => 1,
+        dst      => 'network:n1',
+    }
+};
+
+$out = <<'END';
+Error: Can't find 'network:n1' in rule 1 of service:s1
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Change rules';
 ############################################################
 
 $in = <<'END';
@@ -2179,7 +2435,7 @@ service:s1 = {
         dst = host:h4,
               host:h5,
               ;
-        prt = tcp 90, tcp 91;
+        prt = tcp 85- 90, tcp 91;
 }
 END
 
@@ -2188,35 +2444,21 @@ $job = {
     params => {
         jobs => [
             {
-                method => 'add_service_protocol',
+                method => 'add_to_rule',
                 params => {
-                    name     => 's1',
+                    service  => 's1',
                     rule_num => 1,
                     prt      => 'udp 80',
+                    dst      => 'host:h4',
                 }
             },
             {
-                method => 'delete_service_protocol',
+                method => 'delete_from_rule',
                 params => {
-                    name     => 's1',
+                    service  => 's1',
                     rule_num => 2,
-                    prt      => 'tcp 90',
-                }
-            },
-            {
-                method => 'add_service_server',
-                params => {
-                    name     => 's1',
-                    rule_num => 1,
-                    object   => 'host:h4',
-                }
-            },
-            {
-                method => 'delete_service_server',
-                params => {
-                    name     => 's1',
-                    rule_num => 2,
-                    object   => 'host:h4',
+                    prt      => 'tcp 85 - 90',
+                    dst      => 'host:h4',
                 }
             }
         ]
@@ -2240,7 +2482,7 @@ netspoc/service
 +        prt = tcp 80,
 +              udp 80,
                ;
--        prt = tcp 90, tcp 91;
+-        prt = tcp 85- 90, tcp 91;
 + permit src = user;
 +        dst = host:h5;
 +        prt = tcp 91;
@@ -2274,19 +2516,56 @@ service:s1 = {
 END
 
 $job = {
-    method => 'add_service_protocol',
+    method => 'add_to_rule',
     params => {
-        name     => 's1',
+        service  => 's1',
         rule_num => 9,
         prt      => 'tcp 90',
     }
 };
 
 $out = <<'END';
-Error: Invalid rule_num 9, have 1 rules
+Error: Invalid rule_num 9, have 1 rules in service:s1
 END
 
 test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Change nothing in rule';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+
+service:s1 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'add_to_rule',
+    params => {
+        service  => 's1',
+        rule_num => 1,
+    }
+};
+
+$out = <<'END';
+END
+
+test_run($title, $in, $job, $out);
 
 ############################################################
 $title = 'Add and delete permit rules';
@@ -2324,19 +2603,19 @@ $job = {
     params => {
         jobs => [
             {
-                method => 'add_service_rule',
+                method => 'add_rule',
                 params => {
-                    name      => 's1',
-                    action    => 'permit',
-                    user      => 'src',
-                    objects   => ['host:h5', 'interface:r1.n2' ],
-                    protocols => ['udp 123', 'icmp' ],
+                    service => 's1',
+                    action  => 'permit',
+                    src     => 'user',
+                    dst     => 'host:h5, interface:r1.n2',
+                    prt     => 'udp 123, icmp',
                 }
             },
             {
-                method => 'delete_service_rule',
+                method => 'delete_rule',
                 params => {
-                    name     => 's1',
+                    service  => 's1',
                     rule_num => 2,
                 }
             },
@@ -2364,7 +2643,7 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
-$title = 'Add deny rule';
+$title = 'Add deny rule in front';
 ############################################################
 
 $in = <<'END';
@@ -2402,13 +2681,13 @@ $job = {
     params => {
         jobs => [
             {
-                method => 'add_service_rule',
+                method => 'add_rule',
                 params => {
-                    name      => 's1',
-                    action    => 'deny',
-                    user      => 'dst',
-                    objects   => ['host:h5' ],
-                    protocols => ['udp', 'icmp 4' ],
+                    service => 's1',
+                    action  => 'deny',
+                    src     => 'host:h5',
+                    dst     => 'user',
+                    prt     => 'udp, icmp 4',
                 }
             },
         ]

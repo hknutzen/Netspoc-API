@@ -69,7 +69,7 @@ Parameters:
 - mask: Mask of network if name of network is ```[auto]```.
 
 If name of network is ```[auto]```, the network will be searched by IP
-address and mask. The job aborts if no or multiple networks with this IP/mask are found.
+address and mask.
 
 #### modify_host
 
@@ -121,6 +121,97 @@ Parameters:
 
 - name: Name of group.
 - object: Typed name of object that is added.
+
+#### create_service
+
+Create service with user and rules.
+Service is inserted in file ```netspoc/rule/X```,
+where 'X' is first letter of service name converted to upper case.
+This applies to alphanumeric letter. Otherwise file ```netspoc/rule/other``` is used.
+
+Parameters:
+
+- name: Name of service.
+- user: Object set in Netspoc syntax.
+- rules: Array of JSON objects defining rules:
+  - action: One of "permit" or "deny".
+  - src: Object set with 'user' in Netspoc syntax.
+  - dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
+  - prt: List of protocols where protocol is
+    simple protocol or reference to either protocol or protocolgroup.
+
+#### delete_service
+
+Delete existing service.
+
+Parameters:
+
+- name: Name of service.
+
+#### add_to_user
+
+Add objects to user list of existing service.
+
+Parameters:
+
+- service: Name of service.
+- user: Object set in Netspoc syntax. Multiple values allowed.
+
+#### delete_from_user
+
+Remove objects from user list of existing service.
+
+Parameters:
+
+- service: Name of service.
+- user: Object set in Netspoc syntax. Multiple values allowed.
+
+#### add_to_rule
+
+Add to src, dst or prt in rule of existing service.
+
+Parameters:
+
+- service: Name of service.
+- rule_num: Number of rule that will be changed. Rules count from 1.
+- src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
+- dst: Like 'src'.
+- prt: List of protocols.
+
+#### remove_from_rule
+
+Remove from src, dst or prt in rule of existing service.
+
+Parameters:
+
+- service: Name of service.
+- rule_num: Number of rule that will be changed.
+- src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
+- dst: Like 'src'.
+- prt: List of protocols.
+
+#### add_rule
+
+Add rule to existing service.
+Permit rules are appended at end of existing rules.
+Deny rules are added after last existing deny rule.
+
+Parameters:
+
+- service: Name of service.
+- action: One of "permit" or "deny".
+- src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
+- dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
+- prt: List of protocols.
+
+#### delete_rule
+
+Delete rule from existing service.
+
+Parameters:
+
+- service: Name of service.
+- rule_num: Number of rule that will be deleted.
 
 #### multi_job
 

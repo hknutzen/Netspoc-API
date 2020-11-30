@@ -140,22 +140,20 @@ type job struct {
 }
 
 var handler = map[string]func(*state, *job){
-	"create_host":             (*state).createHost,
-	"modify_host":             (*state).modifyHost,
-	"create_owner":            (*state).createOwner,
-	"modify_owner":            (*state).modifyOwner,
-	"delete_owner":            (*state).deleteOwner,
-	"add_to_group":            (*state).addToGroup,
-	"create_service":          (*state).createService,
-	"delete_service":          (*state).deleteService,
-	"add_service_user":        (*state).addServiceUser,
-	"delete_service_user":     (*state).deleteServiceUser,
-	"add_service_protocol":    (*state).addServiceProtocol,
-	"delete_service_protocol": (*state).deleteServiceProtocol,
-	"add_service_server":      (*state).addServiceServer,
-	"delete_service_server":   (*state).deleteServiceServer,
-	"add_service_rule":        (*state).addServiceRule,
-	"delete_service_rule":     (*state).deleteServiceRule,
+	"create_host":      (*state).createHost,
+	"modify_host":      (*state).modifyHost,
+	"create_owner":     (*state).createOwner,
+	"modify_owner":     (*state).modifyOwner,
+	"delete_owner":     (*state).deleteOwner,
+	"add_to_group":     (*state).addToGroup,
+	"create_service":   (*state).createService,
+	"delete_service":   (*state).deleteService,
+	"add_to_user":      (*state).addToUser,
+	"delete_from_user": (*state).deleteFromUser,
+	"add_to_rule":      (*state).addToRule,
+	"delete_from_rule": (*state).deleteFromRule,
+	"add_rule":         (*state).addRule,
+	"delete_rule":      (*state).deleteRule,
 }
 
 func (s *state) doJobFile(path string) {
@@ -405,17 +403,17 @@ func getServicePath(name string) string {
 }
 
 type jsonRule struct {
-	Action    string   `json:"action"`
-	User      string   `json:"user"`
-	Objects   []string `json:"objects"`
-	Protocols []string `json:"protocols"`
+	Action string `json:"action"`
+	Src    string `json:"src"`
+	Dst    string `json:"dst"`
+	Prt    string `json:"prt"`
 }
 
 func (s *state) createService(j *job) {
 	var p struct {
-		Name    string   `json:"name"`
-		Objects []string `json:"objects"`
-		Rules   []jsonRule
+		Name  string `json:"name"`
+		User  string `json:"user"`
+		Rules []jsonRule
 	}
 	getParams(j, &p)
 	name := "service:" + p.Name
@@ -423,14 +421,7 @@ func (s *state) createService(j *job) {
 	s.createToplevel(name, file, func() ast.Toplevel {
 		sv := new(ast.Service)
 		sv.Name = name
-		var users []ast.Element
-		for _, object := range p.Objects {
-			typ, name := getTypeName(object)
-			obj := new(ast.NamedRef)
-			obj.Type = typ
-			obj.Name = name
-			users = append(users, obj)
-		}
+		users := parser.ParseUnion([]byte(p.User))
 		sv.User = &ast.NamedUnion{Name: "user", Elements: users}
 		for _, jRule := range p.Rules {
 			addSvRule(sv, &jRule)
@@ -449,173 +440,153 @@ func (s *state) deleteService(j *job) {
 	s.deleteToplevel(name)
 }
 
-func (s *state) addServiceUser(j *job) {
+func (s *state) addToUser(j *job) {
 	var p struct {
-		Name   string `json:"name"`
-		Object string `json:"object"`
+		Service string `json:"service"`
+		User    string `json:"user"`
 	}
 	getParams(j, &p)
-	service := "service:" + p.Name
-	object := p.Object
+	service := "service:" + p.Service
 	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
 		sv := toplevel.(*ast.Service)
-
-		// Add object.
-		typ, name := getTypeName(object)
-		obj := new(ast.NamedRef)
-		obj.Type = typ
-		obj.Name = name
-		sv.User.Elements = append(sv.User.Elements, obj)
-
-		// Sort list of objects.
+		add := parser.ParseUnion([]byte(p.User))
+		sv.User.Elements = append(sv.User.Elements, add...)
+		// Sort list of users.
 		sv.Order()
 	})
 }
 
-func (s *state) deleteServiceUser(j *job) {
+func (s *state) deleteFromUser(j *job) {
 	var p struct {
-		Name   string `json:"name"`
-		Object string `json:"object"`
+		Service string `json:"service"`
+		User    string `json:"user"`
 	}
 	getParams(j, &p)
-	service := "service:" + p.Name
-	object := p.Object
+	service := "service:" + p.Service
 	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
 		sv := toplevel.(*ast.Service)
-		typ, name := getTypeName(object)
-		l := sv.User.Elements
-		for i, obj := range l {
-			if obj.GetType() == typ && obj.GetName() == name {
-				sv.User.Elements = append(l[:i], l[i+1:]...)
-				return
+		del := parser.ParseUnion([]byte(p.User))
+	OBJ:
+		for _, obj1 := range del {
+			p1 := printer.Element(obj1)
+			l := sv.User.Elements
+			for i, obj2 := range l {
+				p2 := printer.Element(obj2)
+				if p1 == p2 {
+					sv.User.Elements = append(l[:i], l[i+1:]...)
+					continue OBJ
+				}
 			}
+			abort.Msg("Can't find '%s' in 'user' of %s", p1, service)
 		}
-		abort.Msg("Can't find %s in 'user' of %s", object, service)
 	})
 }
 
-func (s *state) addServiceProtocol(j *job) {
+func (s *state) addToRule(j *job) {
 	var p struct {
-		Name    string `json:"name"`
+		Service string `json:"service"`
 		RuleNum int    `json:"rule_num"`
+		Src     string `json:"src"`
+		Dst     string `json:"dst"`
 		Prt     string `json:"prt"`
 	}
 	getParams(j, &p)
-	service := "service:" + p.Name
+	service := "service:" + p.Service
 	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
 		sv := toplevel.(*ast.Service)
 		rule := getRule(sv, p.RuleNum)
-		rule.Prt.ValueList = append(rule.Prt.ValueList, &ast.Value{Value: p.Prt})
-		// Sort list of protocols.
+		addUnion := func(to *ast.NamedUnion, elements string) {
+			if elements != "" {
+				add := parser.ParseUnion([]byte(elements))
+				to.Elements = append(to.Elements, add...)
+			}
+		}
+		addUnion(rule.Src, p.Src)
+		addUnion(rule.Dst, p.Dst)
+		if p.Prt != "" {
+			attr := rule.Prt
+			for _, prt := range strings.Split(p.Prt, ",") {
+				prt = strings.TrimSpace(prt)
+				attr.ValueList = append(attr.ValueList, &ast.Value{Value: prt})
+			}
+		}
 		sv.Order()
 	})
 }
 
-func (s *state) deleteServiceProtocol(j *job) {
+func (s *state) deleteFromRule(j *job) {
 	var p struct {
-		Name    string `json:"name"`
+		Service string `json:"service"`
 		RuleNum int    `json:"rule_num"`
+		Src     string `json:"src"`
+		Dst     string `json:"dst"`
 		Prt     string `json:"prt"`
 	}
 	getParams(j, &p)
-	service := "service:" + p.Name
+	service := "service:" + p.Service
 	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
 		sv := toplevel.(*ast.Service)
 		rule := getRule(sv, p.RuleNum)
-		l := rule.Prt.ValueList
-		for i, v := range l {
-			if v.Value == p.Prt {
-				rule.Prt.ValueList = append(l[:i], l[i+1:]...)
+		delUnion := func(to *ast.NamedUnion, elements string) {
+			if elements == "" {
 				return
 			}
+			del := parser.ParseUnion([]byte(elements))
+		OBJ:
+			for _, obj1 := range del {
+				p1 := printer.Element(obj1)
+				l := to.Elements
+				for i, obj2 := range l {
+					p2 := printer.Element(obj2)
+					if p1 == p2 {
+						to.Elements = append(l[:i], l[i+1:]...)
+						continue OBJ
+					}
+				}
+				abort.Msg("Can't find '%s' in rule %d of %s",
+					p1, p.RuleNum, service)
+			}
 		}
-		abort.Msg("Can't find '%s' in rule %d", p.Prt, p.RuleNum)
-	})
-}
-
-func (s *state) addServiceServer(j *job) {
-	var p struct {
-		Name    string `json:"name"`
-		RuleNum int    `json:"rule_num"`
-		Object  string `json:"object"`
-	}
-	getParams(j, &p)
-	service := "service:" + p.Name
-	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
-		sv := toplevel.(*ast.Service)
-		rule := getRule(sv, p.RuleNum)
-		typ, name := getTypeName(p.Object)
-		obj := &ast.NamedRef{TypedElt: ast.TypedElt{Type: typ}, Name: name}
-		add := func(x *ast.NamedUnion) {
-			l := x.Elements
-			// Don't add at user side.
-			if len(l) == 1 {
-				if _, ok := l[0].(*ast.User); ok {
-					return
+		delUnion(rule.Src, p.Src)
+		delUnion(rule.Dst, p.Dst)
+		if p.Prt != "" {
+			attr := rule.Prt
+		PRT:
+			for _, prt := range strings.Split(p.Prt, ",") {
+				prt = strings.TrimSpace(prt)
+				l := attr.ValueList
+				for i, v := range l {
+					if v.Value == prt {
+						attr.ValueList = append(l[:i], l[i+1:]...)
+						continue PRT
+					}
 				}
 			}
-			x.Elements = append(l, obj)
 		}
-		add(rule.Src)
-		add(rule.Dst)
-		// Sort list of servers.
 		sv.Order()
 	})
 }
 
-func (s *state) deleteServiceServer(j *job) {
+func (s *state) addRule(j *job) {
 	var p struct {
-		Name    string `json:"name"`
-		RuleNum int    `json:"rule_num"`
-		Object  string `json:"object"`
-	}
-	getParams(j, &p)
-	service := "service:" + p.Name
-	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
-		sv := toplevel.(*ast.Service)
-		rule := getRule(sv, p.RuleNum)
-		typ, name := getTypeName(p.Object)
-		found := false
-		del := func(x *ast.NamedUnion) {
-			l := x.Elements
-			for i, obj := range l {
-				if obj.GetType() == typ && obj.GetName() == name {
-					x.Elements = append(l[:i], l[i+1:]...)
-					found = true
-					return
-				}
-			}
-		}
-		del(rule.Src)
-		del(rule.Dst)
-		if !found {
-			abort.Msg("Can't find %s in rule %d", p.Object, p.RuleNum)
-		}
-		// Sort list of servers.
-		sv.Order()
-	})
-}
-
-func (s *state) addServiceRule(j *job) {
-	var p struct {
-		Name string `json:"name"`
+		Service string `json:"service"`
 		jsonRule
 	}
 	getParams(j, &p)
-	service := "service:" + p.Name
+	service := "service:" + p.Service
 	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
 		sv := toplevel.(*ast.Service)
 		addSvRule(sv, &p.jsonRule)
 	})
 }
 
-func (s *state) deleteServiceRule(j *job) {
+func (s *state) deleteRule(j *job) {
 	var p struct {
-		Name    string `json:"name"`
+		Service string `json:"service"`
 		RuleNum int    `json:"rule_num"`
 	}
 	getParams(j, &p)
-	service := "service:" + p.Name
+	service := "service:" + p.Service
 	s.modifyASTObj(service, func(toplevel ast.Toplevel) {
 		sv := toplevel.(*ast.Service)
 		idx := getRuleIdx(sv, p.RuleNum)
@@ -632,27 +603,15 @@ func addSvRule(sv *ast.Service, p *jsonRule) {
 	default:
 		abort.Msg("Invalid 'Action': '%s'", p.Action)
 	}
-	rule.Src = &ast.NamedUnion{Name: "src"}
-	rule.Dst = &ast.NamedUnion{Name: "dst"}
-	var objList []ast.Element
-	for _, obj := range p.Objects {
-		typ, name := getTypeName(obj)
-		objList = append(objList,
-			&ast.NamedRef{TypedElt: ast.TypedElt{Type: typ}, Name: name})
+	getUnion := func(name string, elements string) *ast.NamedUnion {
+		union := parser.ParseUnion([]byte(elements))
+		return &ast.NamedUnion{Name: name, Elements: union}
 	}
-	usr := []ast.Element{&ast.User{}}
-	switch p.User {
-	case "src":
-		rule.Src.Elements = usr
-		rule.Dst.Elements = objList
-	case "dst":
-		rule.Src.Elements = objList
-		rule.Dst.Elements = usr
-	default:
-		abort.Msg("Invalid 'User': '%s'", p.User)
-	}
+	rule.Src = getUnion("src", p.Src)
+	rule.Dst = getUnion("dst", p.Dst)
 	var prtList []*ast.Value
-	for _, prt := range p.Protocols {
+	for _, prt := range strings.Split(p.Prt, ",") {
+		prt = strings.TrimSpace(prt)
 		prtList = append(prtList, &ast.Value{Value: prt})
 	}
 	rule.Prt = &ast.Attribute{Name: "prt", ValueList: prtList}
@@ -740,7 +699,7 @@ func getRuleIdx(sv *ast.Service, num int) int {
 	idx := num - 1
 	n := len(sv.Rules)
 	if idx < 0 || idx >= n {
-		abort.Msg("Invalid rule_num %d, have %d rules", idx+1, n)
+		abort.Msg("Invalid rule_num %d, have %d rules in %s", idx+1, n, sv.Name)
 	}
 	return idx
 }
