@@ -15,6 +15,14 @@ Netspoc configuration.
   * [modify_owner](#modify_owner)
   * [delete_owner](#delete_owner)
   * [add_to_group](#add_to_group)
+  * [create_service](#create_service)
+  * [delete_service](#delete_service)
+  * [add_to_user](#add_to_user)
+  * [remove_from_user](#remove_from_user)
+  * [add_to_rule](#add_to_rule)
+  * [remove_from_rule](#remove_from_rule)
+  * [add_rule](#add_rule)
+  * [delete_rule](#delete_rule)
   * [multi_job](#multi_job)
 
 
