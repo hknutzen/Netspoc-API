@@ -143,9 +143,9 @@ Parameters:
 - user: Object set in Netspoc syntax.
 - rules: Array of JSON objects defining rules:
   - action: One of "permit" or "deny".
-  - src: Object set with 'user' in Netspoc syntax.
+  - src: String with object set with 'user' in Netspoc syntax.
   - dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
-  - prt: List of protocols where protocol is
+  - prt: String with comma separated list of protocols where protocol is
     simple protocol or reference to either protocol or protocolgroup.
 
 #### delete_service
@@ -165,7 +165,7 @@ Parameters:
 - service: Name of service.
 - user: Object set in Netspoc syntax. Multiple values allowed.
 
-#### delete_from_user
+#### remove_from_user
 
 Remove objects from user list of existing service.
 
@@ -184,7 +184,7 @@ Parameters:
 - rule_num: Number of rule that will be changed. Rules count from 1.
 - src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
 - dst: Like 'src'.
-- prt: List of protocols.
+- prt: String with comma separated list of protocols.
 
 #### remove_from_rule
 
@@ -196,7 +196,7 @@ Parameters:
 - rule_num: Number of rule that will be changed.
 - src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
 - dst: Like 'src'.
-- prt: List of protocols.
+- prt: String with comma separated list list of protocols.
 
 #### add_rule
 
@@ -210,7 +210,7 @@ Parameters:
 - action: One of "permit" or "deny".
 - src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
 - dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
-- prt: List of protocols.
+- prt: String with comma separated list list of protocols.
 
 #### delete_rule
 

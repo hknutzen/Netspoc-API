@@ -2241,7 +2241,7 @@ service:s1 = {
 END
 
 $job = {
-    method => 'delete_from_user',
+    method => 'remove_from_user',
     params => {
         service => 's1',
         user    => 'host:[network:n1, network:n2]',
@@ -2284,7 +2284,7 @@ service:s1 = {
 END
 
 $job = {
-    method => 'delete_from_user',
+    method => 'remove_from_user',
     params => {
         service => 's1',
         user    => 'host:[ network:n1 ]',
@@ -2345,7 +2345,7 @@ $job = {
                 }
             },
             {
-                method => 'delete_from_user',
+                method => 'remove_from_user',
                 params => {
                     service => 's1',
                     user    => 'host:h5',
@@ -2392,7 +2392,7 @@ service:s1 = {
 END
 
 $job = {
-    method => 'delete_from_rule',
+    method => 'remove_from_rule',
     params => {
         service  => 's1',
         rule_num => 1,
@@ -2453,7 +2453,7 @@ $job = {
                 }
             },
             {
-                method => 'delete_from_rule',
+                method => 'remove_from_rule',
                 params => {
                     service  => 's1',
                     rule_num => 2,

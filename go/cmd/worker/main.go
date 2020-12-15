@@ -149,9 +149,9 @@ var handler = map[string]func(*state, *job){
 	"create_service":   (*state).createService,
 	"delete_service":   (*state).deleteService,
 	"add_to_user":      (*state).addToUser,
-	"delete_from_user": (*state).deleteFromUser,
+	"remove_from_user": (*state).removeFromUser,
 	"add_to_rule":      (*state).addToRule,
-	"delete_from_rule": (*state).deleteFromRule,
+	"remove_from_rule": (*state).removeFromRule,
 	"add_rule":         (*state).addRule,
 	"delete_rule":      (*state).deleteRule,
 }
@@ -456,7 +456,7 @@ func (s *state) addToUser(j *job) {
 	})
 }
 
-func (s *state) deleteFromUser(j *job) {
+func (s *state) removeFromUser(j *job) {
 	var p struct {
 		Service string `json:"service"`
 		User    string `json:"user"`
@@ -514,7 +514,7 @@ func (s *state) addToRule(j *job) {
 	})
 }
 
-func (s *state) deleteFromRule(j *job) {
+func (s *state) removeFromRule(j *job) {
 	var p struct {
 		Service string `json:"service"`
 		RuleNum int    `json:"rule_num"`
