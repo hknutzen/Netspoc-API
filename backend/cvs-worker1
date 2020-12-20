@@ -10,8 +10,8 @@ set -e
 # commands in the pipeline exit successfully.
 set -o pipefail
 
-# Work in $HOME where paths are known.
-cd $HOME
+# Called scripts are searched in directory of current script.
+path=$(dirname $(readlink -f $0))
 
 abort () { echo "Error: $*" >&2; exit 1; }
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
@@ -27,7 +27,7 @@ rm -rf netspoc.orig
 cp -r netspoc netspoc.orig
 
 # Apply changes and compile changed files.
-if { bin/worker $* && netspoc -q netspoc; } 2>err; then
+if { $path/worker $* && netspoc -q netspoc; } 2>err; then
     # Success.
     if [ ! -s err ] ; then
         exit 0
