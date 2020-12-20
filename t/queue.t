@@ -369,27 +369,12 @@ change_netspoc(<<'END');
 network:a = { ip = 10.1.1.0/24; }  BAD SYNTAX
 END
 $id = add_job($job);
-sleep 1;
-check_status($id, 'INPROGRESS', 'Wait on bad repository');
-sleep 2;
-check_status($id, 'INPROGRESS', 'Still wait on bad repository');
-
-# Check in other bad content to repository; processing must still stop.
-change_netspoc(<<'END');
--- topology
-network:a = { ip = 10.1.1.0/24; }  STILL BAD SYNTAX
-END
-sleep 1;
-check_status($id, 'INPROGRESS', 'Wait on changed bad repository');
-
-# Fix bad content.
-change_netspoc(<<'END');
--- topology
-network:a = { ip = 10.1.1.0/24; } # Comment
-END
 wait_job($id);
-check_status($id, 'FINISHED', 'Success after fixing repository');
-
+check_status($id, <<'END', 'Abort on bad repository');
+ERROR
+Error: API is currently unusable, because someone else has checked in bad files.
+ Please try again later.
+END
 stop_queue($pid);
 
 # Let "scp" fail

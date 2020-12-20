@@ -15,67 +15,52 @@ cd $HOME
 
 abort () { echo "Error: $*" >&2; exit 1; }
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
+newline=$'\n'
 
-# Time between "cvs update" on bad content in repository.
-WAIT_BAD_CVS=60
-[ -n "$NETSPOC_API_TEST" ] && WAIT_BAD_CVS=0.5
+# Get updated files.
+rm -rf netspoc
+cvs -Q checkout -P netspoc 2>err ||
+    abort-err "Error during initial cvs checkout:"
 
-# Wait for new commits.
-wait_new_commits () {
-    while true; do
-        MSG=$(cvs -q update -Pd netspoc.orig 2>err) ||
-            abort-err "Error during cvs update for netspoc.orig:"
-        [ -n "$MSG" ] && break
-        sleep $WAIT_BAD_CVS
-    done
-}
+# Copy unchanged netspoc files for further inspection in case of errors.
+rm -rf netspoc.orig
+cp -r netspoc netspoc.orig
 
-while true; do
-
-    # Get updated files.
-    rm -rf netspoc
-    cvs -Q checkout -P netspoc 2>err ||
-        abort-err "Error during initial cvs checkout:"
-
-    # Copy unchanged netspoc files for further inspection in case of errors.
-    rm -rf netspoc.orig
-    cp -r netspoc netspoc.orig
-
-    # Apply changes and compile changed files.
-    if { bin/worker $* && netspoc -q netspoc; } 2>err; then
-        # Success.
-        if [ ! -s err ] ; then
-            exit 0
-        fi
-        # Warnings occurred.
-        FAILED=''
-    else
-        FAILED=1
+# Apply changes and compile changed files.
+if { bin/worker $* && netspoc -q netspoc; } 2>err; then
+    # Success.
+    if [ ! -s err ] ; then
+        exit 0
     fi
+    # Warnings occurred.
+    FAILED=''
+else
+    FAILED=1
+fi
 
-    # Check if original files also compile with errors or warnings.
-    if ! netspoc -q netspoc.orig 2>err.orig ; then
+# Check if original files also compile with errors or warnings.
+if ! netspoc -q netspoc.orig 2>err.orig ; then
 
-        # Current state has files that won't compile.
-        # Wait for updates and try again.
-        wait_new_commits
-        continue
-    fi
+    # Current state has files that won't compile.
+    abort "API is currently unusable," \
+    "because someone else has checked in bad files.$newline" \
+    "Please try again later."
 
-    # Original files are ok, but changed files failed to compile.
-    if [ -n "$FAILED" ] ; then
-        abort-err "Netspoc failed:"
-    fi
+fi
 
-    # Collect warnings. It is ok if no warnings were found.
-    grep '^Warning:' err.orig >warn || true
+# Original files are ok, but changed files failed to compile.
+if [ -n "$FAILED" ] ; then
+    abort-err "Netspoc failed:"
+fi
 
-    # Warning occurred when compiling changed files.
-    # Compare with warnings from compiling original files.
-    if ! grep '^Warning:' err | cmp -s warn - ; then
-        abort-err "Netspoc warnings:"
-    fi
+# Collect warnings. It is ok if no warnings were found.
+grep '^Warning:' err.orig >warn || true
 
-    # No additional warnings occurred.
-    exit 0
-done
+# Warning occurred when compiling changed files.
+# Compare with warnings from compiling original files.
+if ! grep '^Warning:' err | cmp -s warn - ; then
+    abort-err "Netspoc warnings:"
+fi
+
+# No additional warnings occurred.
+exit 0
