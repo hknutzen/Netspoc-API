@@ -5,6 +5,16 @@
 # Abort on each error
 set -e
 
+# Check parameter
+verbose=''
+if getopts 'v' flag; then
+    shift
+    verbose=1
+fi
+
+abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
+info () { [ $verbose ] && echo "$*" >&2 || true; }
+
 # Add job IDs and CRQs to commit message.
 [ $# -gt 1 ] && S=s
 MSG="API job$S:"
@@ -15,15 +25,16 @@ done
 
 # Get CRQs from all jobs given as arguments.
 CRQ=$(jq -r '.crq | values' $* | sort -u | paste -s -d' ')
-newline=$'\n'
-[ -n "$CRQ" ] && MSG="$MSG$newline$CRQ"
+[ -n "$CRQ" ] && MSG="$MSG
+$CRQ"
 
-abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 
 # Try to check in.
 while true; do
+    info "Committing changes"
     if cvs -q commit -m"$MSG" netspoc >/dev/null 2>err; then
-        break;
+        info "Success"
+        break
     fi
     # Try again if Up-to-date check failed,
     # i.e. both given messages are ignored.
@@ -33,7 +44,7 @@ while true; do
         abort-err "Error during cvs commit:"
     fi
     cvs -q update netspoc >/dev/null 2>err ||
-        abort-err "during cvs update (after change):"
+        abort-err "Error during cvs update (after change):"
     # Check for merge conflict
     if [ -n "$(cat err | egrep '^[^ ]+ update: conflicts found in')" ] ; then
         abort-err "Merge conflict during cvs update:"

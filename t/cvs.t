@@ -44,10 +44,11 @@ sub test_worker {
         $i++;
     }
 
+    my $verbose = $named{verbose} ? "-v" : "";
     # Checkout files from CVS, apply changes and run Netspoc.
-    my ($success, $stderr) = run('bin/cvs-worker1 [0-9]*');
+    my ($success, $stderr) = run("bin/cvs-worker1 $verbose [0-9]*");
 
-    if (not $success and (not $stderr or $stderr !~ /^Netspoc/)) {
+    if (not $success and not $stderr) {
         return ($success, $stderr);
     }
 
@@ -80,7 +81,7 @@ sub test_worker {
     }
 
     # Try to check in changes.
-    ($success, $stderr) = run('bin/cvs-worker2 [0-9]*');
+    ($success, $stderr) = run("bin/cvs-worker2 $verbose [0-9]*");
     $success or $diff = $stderr;
 
     if (my $file = $named{cvs_log}) {
@@ -188,6 +189,9 @@ $job = {
 };
 
 $out = <<'END';
+Checking out files
+Applying changes and compiling files
+Checking original files for errors or warnings
 Netspoc warnings:
 Warning: Useless owner:DA_abc at host:name_10_1_1_3,
  it was already inherited from any:a
@@ -204,7 +208,7 @@ netspoc/topology
  }
 END
 
-test_err($title, $in, $job, $out);
+test_err($title, $in, $job, $out, verbose => 1);
 
 ############################################################
 $title = 'Add host, need cvs update';
@@ -275,12 +279,13 @@ $job = {
 };
 
 $out = <<'END';
+Checking in changes
 Merge conflict during cvs update:
 rcsmerge: warning: conflicts during merge
 cvs update: conflicts found in netspoc/topology
 END
 
-test_err($title, $in, $job, $out, other => $other);
+test_err($title, $in, $job, $out, other => $other, verbose => 1);
 
 ############################################################
 $title = 'multi_job: add host and owner';

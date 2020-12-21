@@ -13,11 +13,18 @@ set -o pipefail
 # Called scripts are searched in directory of current script.
 path=$(dirname $(readlink -f $0))
 
+# Check parameter
+verbose=''
+if getopts 'v' flag; then
+    shift
+    verbose=1
+fi
+
 abort () { echo "Error: $*" >&2; exit 1; }
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
-newline=$'\n'
+info () { [ $verbose ] && echo "$*" >&2 || true; }
 
-# Get updated files.
+info "Checking out files to $(readlink -f .)/netspoc"
 rm -rf netspoc
 cvs -Q checkout -P netspoc 2>err ||
     abort-err "Error during initial cvs checkout:"
@@ -26,7 +33,7 @@ cvs -Q checkout -P netspoc 2>err ||
 rm -rf netspoc.orig
 cp -r netspoc netspoc.orig
 
-# Apply changes and compile changed files.
+info "Applying changes and compiling files"
 if { $path/worker $* && netspoc -q netspoc; } 2>err; then
     # Success.
     if [ ! -s err ] ; then
@@ -38,13 +45,13 @@ else
     FAILED=1
 fi
 
-# Check if original files also compile with errors or warnings.
+info "Checking original files for errors or warnings"
 if ! netspoc -q netspoc.orig 2>err.orig ; then
 
     # Current state has files that won't compile.
     abort "API is currently unusable," \
-    "because someone else has checked in bad files.$newline" \
-    "Please try again later."
+          "because someone else has checked in bad files.
+ Please try again later."
 
 fi
 
