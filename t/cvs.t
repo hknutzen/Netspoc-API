@@ -51,6 +51,7 @@ sub test_worker {
     if (not $success and not $stderr) {
         return ($success, $stderr);
     }
+    $stderr =~ s/\Q$home_dir\E/~/g;
 
     # Collect and simplify diff before check in.
     # Show diff even if Netspoc failed.
@@ -189,7 +190,7 @@ $job = {
 };
 
 $out = <<'END';
-Checking out files
+Checking out files to ~/netspoc
 Applying changes and compiling files
 Checking original files for errors or warnings
 Netspoc warnings:
@@ -279,7 +280,7 @@ $job = {
 };
 
 $out = <<'END';
-Checking in changes
+Committing changes
 Merge conflict during cvs update:
 rcsmerge: warning: conflicts during merge
 cvs update: conflicts found in netspoc/topology
