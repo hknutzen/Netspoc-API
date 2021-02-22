@@ -1724,7 +1724,7 @@ $job = {
 };
 
 $out = <<'END';
-Syntax error: Expected ';' at line 2 of netspoc/owner, near "b --HERE-->example.com"
+Error: Expected ';' at line 2 of netspoc/owner, near "b --HERE-->example.com"
 ---
 netspoc/owner
 @@ -1 +1,3 @@
@@ -1935,7 +1935,7 @@ $job = {
 };
 
 $out = <<'END';
-Syntax error: Typed name expected at line 1 of command line, near "--HERE-->_user_"
+Error: Typed name expected at line 1 of command line, near "--HERE-->_user_"
 END
 
 test_err($title, $in, $job, $out);
@@ -1960,7 +1960,7 @@ $job = {
 };
 
 $out = <<'END';
-Syntax error: Unknown element type at line 1 of command line, near "--HERE-->net:n2"
+Error: Unknown element type at line 1 of command line, near "--HERE-->net:n2"
 END
 
 test_err($title, $in, $job, $out);
