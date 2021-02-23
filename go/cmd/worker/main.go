@@ -51,7 +51,11 @@ func main() {
 	conf.ConfigFromArgsAndFile(dummyArgs, netspocPath)
 
 	s := new(state)
-	s.State = astset.Read(netspocPath)
+	var err error
+	s.State, err = astset.Read(netspocPath)
+	if err != nil {
+		abortf("%s", err)
+	}
 	for _, path := range os.Args[1:] {
 		s.doJobFile(path)
 	}
