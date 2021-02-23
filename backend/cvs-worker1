@@ -34,7 +34,10 @@ rm -rf netspoc.orig
 cp -r netspoc netspoc.orig
 
 info "Applying changes and compiling files"
-if { $path/worker $* && netspoc -q netspoc; } 2>err; then
+if ! $path/worker $*  2>err; then
+    abort-err "API failed:"
+fi
+if netspoc -q netspoc 2>err; then
     # Success.
     if [ ! -s err ] ; then
         exit 0

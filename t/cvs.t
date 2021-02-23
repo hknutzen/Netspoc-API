@@ -212,6 +212,69 @@ END
 test_err($title, $in, $job, $out, verbose => 1);
 
 ############################################################
+$title = 'Add host, Netspoc failure';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.1.0.0/21; host:name_10_1_1_4 = { ip = 10.1.1.4; } }
+END
+
+$job = {
+    method => 'create_host',
+    params => {
+        network => '[auto]',
+        name    => 'name_10_1_1_4',
+        ip      => '10.1.1.4',
+        mask    => '255.255.248.0',
+    }
+};
+
+$out = <<'END';
+Netspoc failed:
+Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
+Aborted with 1 error(s)
+---
+netspoc/topology
+@@ -1 +1,5 @@
+-network:a = { ip = 10.1.0.0/21; host:name_10_1_1_4 = { ip = 10.1.1.4; } }
++network:a = {
++ ip = 10.1.0.0/21;
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
++ host:name_10_1_1_4 = { ip = 10.1.1.4; }
++}
+END
+
+test_err($title, $in, $job, $out, other => $other);
+
+############################################################
+$title = 'Add host, API failure';
+############################################################
+
+$in = <<'END';
+-- topology
+network:a = { ip = 10.2.0.0/21; }
+END
+
+$job = {
+    method => 'create_host',
+    params => {
+        network => '[auto]',
+        name    => 'name_10_1_1_4',
+        ip      => '10.1.1.4',
+        mask    => '255.255.248.0',
+    }
+};
+
+$out = <<'END';
+API failed:
+Error: Can't find network with 'ip = 10.1.0.0/21'
+---
+END
+
+test_err($title, $in, $job, $out, other => $other);
+
+############################################################
 $title = 'Add host, need cvs update';
 ############################################################
 
