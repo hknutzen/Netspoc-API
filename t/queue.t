@@ -363,10 +363,11 @@ www_check_status(
 
 check_log('', 'Empty log');
 
-# Check in bad content to repository, so processing stops.
+# Check in bad content, so Netspoc stops with errors.
 change_netspoc(<<'END');
 -- topology
-network:a = { ip = 10.1.1.0/24; }  BAD SYNTAX
+network:a = { ip = 10.1.1.0/24; }
+network:a = { ip = 10.1.1.0/24; }
 END
 $id = add_job($job);
 wait_job($id);
@@ -375,6 +376,31 @@ ERROR
 Error: API is currently unusable, because someone else has checked in bad files.
  Please try again later.
 END
+
+# Check in bad content which API can't read.
+change_netspoc(<<'END');
+-- topology
+network:a = { ip = 10.1.1.0/24; }  BAD SYNTAX
+END
+$id = add_job($job);
+wait_job($id);
+check_status($id, <<'END', 'API fails on illegal syntax in repository');
+ERROR
+Error: API is currently unusable, because someone else has checked in bad files.
+ Please try again later.
+END
+
+# Check in config file with unknown option that should be ignored by API.
+change_netspoc(<<'END');
+-- topology
+network:a = { ip = 10.1.1.0/24; }
+-- config
+unknown = value;
+END
+$id = add_job($job);
+wait_job($id);
+check_status($id, 'FINISHED', 'Ignore invalid config');
+
 stop_queue($pid);
 
 # Let "scp" fail

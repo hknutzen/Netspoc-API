@@ -22,8 +22,13 @@ fi
 
 abort () { echo "Error: $*" >&2; exit 1; }
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
-info () { [ $verbose ] && echo "$*" >&2 || true; }
 
+info () { [ $verbose ] && echo "$*" >&2 || true; }
+abort-try-again () {
+    abort "API is currently unusable," \
+          "because someone else has checked in bad files.
+ Please try again later."
+    }
 info "Checking out files to $(readlink -f .)/netspoc"
 rm -rf netspoc
 cvs -Q checkout -P netspoc 2>err ||
@@ -35,7 +40,11 @@ cp -r netspoc netspoc.orig
 
 info "Applying changes and compiling files"
 if ! $path/worker $*  2>err; then
-    abort-err "API failed:"
+    case $(cat err) in
+        "Error: While reading netspoc files:"*) abort-try-again;;
+        *)
+            abort-err "API failed:"
+    esac
 fi
 if netspoc -q netspoc 2>err; then
     # Success.
@@ -52,9 +61,7 @@ info "Checking original files for errors or warnings"
 if ! netspoc -q netspoc.orig 2>err.orig ; then
 
     # Current state has files that won't compile.
-    abort "API is currently unusable," \
-          "because someone else has checked in bad files.
- Please try again later."
+    abort-try-again
 
 fi
 

@@ -54,7 +54,8 @@ func main() {
 	var err error
 	s.State, err = astset.Read(netspocPath)
 	if err != nil {
-		abortf("%s", err)
+		// Text of this error message is checked in cvs-worker1.
+		abortf("While reading netspoc files: %s", err)
 	}
 	for _, path := range os.Args[1:] {
 		s.doJobFile(path)
