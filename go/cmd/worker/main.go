@@ -483,14 +483,17 @@ func (s *state) removeFromRule(j *job) {
 			attr := rule.Prt
 		PRT:
 			for _, prt := range strings.Split(p.Prt, ",") {
-				prt = strings.TrimSpace(prt)
+				p1 := strings.ReplaceAll(prt, " ", "")
 				l := attr.ValueList
 				for i, v := range l {
-					if v.Value == prt {
+					p2 := strings.ReplaceAll(v.Value, " ", "")
+					if p1 == p2 {
 						attr.ValueList = append(l[:i], l[i+1:]...)
 						continue PRT
 					}
 				}
+				abortf("Can't find '%s' in rule %d of %s",
+					prt, p.RuleNum, service)
 			}
 		}
 		sv.Order()

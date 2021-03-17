@@ -2407,6 +2407,102 @@ END
 test_err($title, $in, $job, $out);
 
 ############################################################
+$title = 'Delete unknown protocol in rule';
+############################################################
+
+$in = <<'END';
+--all
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+service:s1 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80;
+}
+END
+
+$job = {
+    method => 'remove_from_rule',
+    params => {
+        service  => 's1',
+        rule_num => 1,
+        prt      => 'udp 80',
+    }
+};
+
+$out = <<'END';
+Error: Can't find 'udp 80' in rule 1 of service:s1
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Delete protocols in rule';
+############################################################
+
+$in = <<'END';
+--topo
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+--service
+service:s1 = {
+ user = network:n1;
+ permit src = user;
+        dst = network:n2;
+        prt = tcp 80,
+              tcp 443,
+              tcp 9300 - 9302,
+              udp 161-162,
+              udp 427,
+              icmp 3/13,
+              ;
+}
+END
+
+$job = {
+  "method" => "remove_from_rule",
+  "params" => {
+    "prt" => "icmp 3  / 13 , tcp 443, tcp 9300-9302, udp 161 - 162, udp 427",
+    "rule_num" => 1,
+    "service" => "s1"
+  }
+};
+
+$out = <<'END';
+netspoc/service
+@@ -2,11 +2,5 @@
+  user = network:n1;
+  permit src = user;
+         dst = network:n2;
+-        prt = tcp 80,
+-              tcp 443,
+-              tcp 9300 - 9302,
+-              udp 161-162,
+-              udp 427,
+-              icmp 3/13,
+-              ;
++        prt = tcp 80;
+ }
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
 $title = 'Change rules';
 ############################################################
 
