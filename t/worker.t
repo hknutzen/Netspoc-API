@@ -1760,7 +1760,7 @@ END
 $job = {
     method => 'create_service',
     params => {
-        name  => 's1',
+        name  => 'multi',
         user => 'network:n2',
         rules => [
             {
@@ -1792,9 +1792,9 @@ $job = {
 };
 
 $out = <<'END';
-netspoc/rule/S
+netspoc/rule/M
 @@ -0,0 +1,25 @@
-+service:s1 = {
++service:multi = {
 + user = network:n2;
 + deny   src = user;
 +        dst = network:n1;
@@ -1847,7 +1847,7 @@ END
 $job = {
     method => 'create_service',
     params => {
-        name  => 's1',
+        name  => 'complex',
         user => 'host:[network:n1] &! host:h4, interface:r1.n1',
         rules => [
             {
@@ -1861,9 +1861,9 @@ $job = {
 };
 
 $out = <<'END';
-netspoc/rule/S
+netspoc/rule/C
 @@ -0,0 +1,10 @@
-+service:s1 = {
++service:complex = {
 + user = interface:r1.n1,
 +        host:[network:n1]
 +        &! host:h4

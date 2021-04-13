@@ -343,8 +343,8 @@ func (s *state) createService(j *job) {
 		Rules []jsonRule
 	}
 	getParams(j, &p)
+	file := getServicePath(p.Name)
 	name := "service:" + p.Name
-	file := getServicePath(name)
 	sv := new(ast.Service)
 	sv.Name = name
 	users, err := parser.ParseUnion([]byte(p.User))
