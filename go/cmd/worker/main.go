@@ -263,7 +263,7 @@ func (s *state) createOwner(j *job) {
 		wAttr := ast.CreateAttr("watchers", p.Watchers)
 		obj.Attributes = append(obj.Attributes, wAttr)
 	}
-	s.CreateToplevel(name, file, obj)
+	s.CreateToplevel(file, obj)
 }
 
 func (s *state) modifyOwner(j *job) {
@@ -354,7 +354,7 @@ func (s *state) createService(j *job) {
 		addSvRule(sv, &jRule)
 	}
 	sv.Order()
-	s.CreateToplevel(name, file, sv)
+	s.CreateToplevel(file, sv)
 }
 
 func (s *state) deleteService(j *job) {
