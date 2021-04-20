@@ -363,7 +363,7 @@ func (s *state) deleteService(j *job) {
 	}
 	getParams(j, &p)
 	name := "service:" + p.Name
-	s.DeleteToplevel(name)
+	checkErr(s.DeleteToplevel(name))
 }
 
 func (s *state) addToUser(j *job) {

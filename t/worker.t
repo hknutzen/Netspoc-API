@@ -2143,6 +2143,28 @@ END
 test_run($title, $in, $job, $out);
 
 ############################################################
+$title = 'Delete unknown service';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+END
+
+$job = {
+    method => 'delete_service',
+    params => {
+        name => 's1',
+    }
+};
+
+$out = <<'END';
+Error: Can't find service:s1
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 $title = 'Add to user';
 ############################################################
 
