@@ -338,15 +338,21 @@ type jsonRule struct {
 
 func (s *state) createService(j *job) {
 	var p struct {
-		Name  string `json:"name"`
-		User  string `json:"user"`
-		Rules []jsonRule
+		Name        string `json:"name"`
+		User        string `json:"user"`
+		Description string `json:"description"`
+		Rules       []jsonRule
 	}
 	getParams(j, &p)
 	file := getServicePath(p.Name)
 	name := "service:" + p.Name
 	sv := new(ast.Service)
 	sv.Name = name
+	if t := p.Description; t != "" {
+		d := new(ast.Description)
+		d.Text = t
+		sv.Description = d
+	}
 	users, err := parser.ParseUnion([]byte(p.User))
 	checkErr(err)
 	sv.User = &ast.NamedUnion{Name: "user", Elements: users}

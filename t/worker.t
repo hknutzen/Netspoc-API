@@ -403,7 +403,8 @@ $out = <<'END';
 netspoc/group
 @@ -1,4 +1,6 @@
  group:g1 =
-  description = Some text;
+- description = Some text;
++ description = Some text
 +
   network:n1,
 + network:n2,
@@ -1848,6 +1849,7 @@ $job = {
     method => 'create_service',
     params => {
         name  => 'complex',
+        description => 'This one',
         user => 'host:[network:n1] &! host:h4, interface:r1.n1',
         rules => [
             {
@@ -1862,8 +1864,10 @@ $job = {
 
 $out = <<'END';
 netspoc/rule/C
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,12 @@
 +service:complex = {
++ description = This one
++
 + user = interface:r1.n1,
 +        host:[network:n1]
 +        &! host:h4

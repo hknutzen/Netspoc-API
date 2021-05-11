@@ -140,6 +140,7 @@ This applies to alphanumeric letter. Otherwise file ```netspoc/rule/other``` is 
 Parameters:
 
 - name: Name of service.
+- description: Optional description text.
 - user: Object set in Netspoc syntax.
 - rules: Array of JSON objects defining rules:
   - action: One of "permit" or "deny".
