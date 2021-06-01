@@ -297,14 +297,11 @@ func (s *state) addToGroup(j *job) {
 	}
 	getParams(j, &p)
 	group := "group:" + p.Name
-	object := p.Object
 	checkErr(s.ModifyObj(group, func(toplevel ast.Toplevel) {
 		n := toplevel.(*ast.TopList)
-
-		// Add object.
-		typ, name := getTypeName(object)
-		obj := &ast.NamedRef{TypedElt: ast.TypedElt{Type: typ}, Name: name}
-		n.Elements = append(n.Elements, obj)
+		add, err := parser.ParseUnion([]byte(p.Object))
+		checkErr(err)
+		n.Elements = append(n.Elements, add...)
 
 		// Sort list of objects.
 		n.Order()
