@@ -2523,7 +2523,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Can't find 'network:n1' in rule 1 of service:s1
+Error: Can't find 'network:n1' in 'dst' of service:s1
 END
 
 test_err($title, $in, $job, $out);

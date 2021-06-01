@@ -398,21 +398,7 @@ func (s *state) removeFromUser(j *job) {
 	service := "service:" + p.Service
 	checkErr(s.ModifyObj(service, func(toplevel ast.Toplevel) {
 		sv := toplevel.(*ast.Service)
-		del, err := parser.ParseUnion([]byte(p.User))
-		checkErr(err)
-	OBJ:
-		for _, obj1 := range del {
-			p1 := printer.Element(obj1)
-			l := sv.User.Elements
-			for i, obj2 := range l {
-				p2 := printer.Element(obj2)
-				if p1 == p2 {
-					sv.User.Elements = append(l[:i], l[i+1:]...)
-					continue OBJ
-				}
-			}
-			abortf("Can't find '%s' in 'user' of %s", p1, service)
-		}
+		delUnion(sv.User, service, -1, p.User)
 	}))
 }
 
@@ -462,29 +448,8 @@ func (s *state) removeFromRule(j *job) {
 	checkErr(s.ModifyObj(service, func(toplevel ast.Toplevel) {
 		sv := toplevel.(*ast.Service)
 		rule := getRule(sv, p.RuleNum)
-		delUnion := func(to *ast.NamedUnion, elements string) {
-			if elements == "" {
-				return
-			}
-			del, err := parser.ParseUnion([]byte(elements))
-			checkErr(err)
-		OBJ:
-			for _, obj1 := range del {
-				p1 := printer.Element(obj1)
-				l := to.Elements
-				for i, obj2 := range l {
-					p2 := printer.Element(obj2)
-					if p1 == p2 {
-						to.Elements = append(l[:i], l[i+1:]...)
-						continue OBJ
-					}
-				}
-				abortf("Can't find '%s' in rule %d of %s",
-					p1, p.RuleNum, service)
-			}
-		}
-		delUnion(rule.Src, p.Src)
-		delUnion(rule.Dst, p.Dst)
+		delUnion(rule.Src, service, p.RuleNum, p.Src)
+		delUnion(rule.Dst, service, p.RuleNum, p.Dst)
 		if p.Prt != "" {
 			attr := rule.Prt
 		PRT:
@@ -572,6 +537,31 @@ func addSvRule(sv *ast.Service, p *jsonRule) {
 	}
 }
 
+func delUnion(where *ast.NamedUnion, sv string, rNum int, elements string) {
+	if elements == "" {
+		return
+	}
+	del, err := parser.ParseUnion([]byte(elements))
+	checkErr(err)
+OBJ:
+	for _, obj1 := range del {
+		p1 := printer.Element(obj1)
+		l := where.Elements
+		for i, obj2 := range l {
+			p2 := printer.Element(obj2)
+			if p1 == p2 {
+				where.Elements = append(l[:i], l[i+1:]...)
+				continue OBJ
+			}
+		}
+		num := ""
+		if rNum > 1 {
+			num = fmt.Sprintf(" of rule %d", rNum)
+		}
+		abortf("Can't find '%s' in '%s'%s of %s",
+			p1, where.Name, num, sv)
+	}
+}
 func getParams(j *job, p interface{}) {
 	if j.Params != nil {
 		err := json.Unmarshal(j.Params, p)
