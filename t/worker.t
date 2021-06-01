@@ -544,6 +544,7 @@ $job = {
 };
 
 $out = <<'END';
+Warning: Ignoring file 'netspoc/owner' without any content
 Warning: Ignoring undefined owner:a of network:n1
 ---
 netspoc/owner
@@ -1358,8 +1359,6 @@ $title = 'multi_job without jobs';
 $in = <<'END';
 -- topology
 network:n1 = { ip = 10.1.1.0/24; }
--- owner
-# Add owners below.
 END
 
 $job = {
@@ -1606,6 +1605,108 @@ $title = 'Change owner at second of multiple ID-hosts';
 
 $in = <<'END';
 -- topology
+ipsec:aes256SHA = {
+ key_exchange = isakmp:aes256SHA;
+ esp_encryption = aes256;
+ esp_authentication = sha;
+ pfs_group = 2;
+ lifetime = 600 sec;
+}
+
+isakmp:aes256SHA = {
+ authentication = rsasig;
+ encryption = aes256;
+ hash = sha;
+ group = 2;
+ lifetime = 86400 sec;
+}
+
+crypto:vpn1 = {
+ type = ipsec:aes256SHA;
+}
+
+crypto:vpn2 = {
+ type = ipsec:aes256SHA;
+}
+
+network:intern = { ip = 10.1.0.0/24; }
+
+router:r = {
+ model = IOS;
+ managed = routing_only;
+ interface:intern = { ip = 10.1.0.1; hardware = e0; }
+ interface:trans  = { ip = 10.9.9.1; hardware = e1; }
+}
+
+network:trans = { ip = 10.9.9.0/24; }
+
+router:gw = {
+ model = IOS;
+ managed;
+ routing = manual;
+ interface:trans   = { ip = 10.9.9.2; hardware = e0; }
+ interface:dmz-int = { ip = 192.168.1.2; hardware = e1; }
+}
+
+network:dmz-int = { ip = 192.168.1.0/24; }
+
+router:asavpn1 = {
+ model = ASA, VPN;
+ managed;
+ general_permit = icmp 3;
+ radius_attributes = {
+  trust-point = ASDM_TrustPoint1;
+ }
+ interface:dmz-int = {
+  ip = 192.168.1.101;
+  hub = crypto:vpn1;
+  hardware = outside;
+  no_check;
+ }
+}
+
+router:soft-int = {
+ interface:trans = {
+  spoke = crypto:vpn1;
+  ip = 10.9.9.3;
+ }
+ interface:n1;
+}
+
+router:asavpn2 = {
+ model = ASA, VPN;
+ managed;
+ general_permit = icmp 3;
+ radius_attributes = {
+  trust-point = ASDM_TrustPoint1;
+ }
+ interface:intern = { ip = 10.1.0.101; hardware = inside; }
+ interface:dmz = {
+  ip = 192.168.0.101;
+  hub = crypto:vpn2;
+  hardware = outside;
+ }
+}
+
+network:dmz = { ip = 192.168.0.0/24; }
+
+router:extern = {
+ interface:dmz = { ip = 192.168.0.1; }
+ interface:internet;
+}
+
+network:internet = {
+ ip = 0.0.0.0/0;
+ has_subnets;
+}
+
+router:soft-ext = {
+ interface:internet = {
+  spoke = crypto:vpn2;
+ }
+ interface:n2;
+}
+
 network:n1 = {
  ip = 10.1.1.0/24;
  host:id:a1@example.com = { ip = 10.1.1.1; owner = DA_TOKEN_o1; }
@@ -1616,11 +1717,6 @@ network:n2 = {
  ip = 10.1.2.0/24;
  host:id:a1@example.com = { ip = 10.1.2.1; owner = DA_TOKEN_o1; }
  host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o2; }
-}
-
-router:r1 = {
- interface:n1;
- interface:n2;
 }
 -- owner-token
 owner:DA_TOKEN_o1 = {
@@ -1670,15 +1766,13 @@ netspoc/owner-token
 + admins = a3@example.com;
 +}
 netspoc/topology
-@@ -7,7 +7,7 @@
+@@ -109,5 +109,5 @@
  network:n2 = {
   ip = 10.1.2.0/24;
   host:id:a1@example.com = { ip = 10.1.2.1; owner = DA_TOKEN_o1; }
 - host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o2; }
 + host:id:a2@example.com = { ip = 10.1.2.2; owner = DA_TOKEN_o3; }
  }
-
- router:r1 = {
 END
 
 test_run($title, $in, $job, $out);
@@ -2134,6 +2228,8 @@ $job = {
 };
 
 $out = <<'END';
+Warning: Ignoring file 'netspoc/service' without any content
+---
 netspoc/service
 @@ -1,6 +0,0 @@
 -service:s1 = {
@@ -2144,7 +2240,7 @@ netspoc/service
 -}
 END
 
-test_run($title, $in, $job, $out);
+test_err($title, $in, $job, $out);
 
 ############################################################
 $title = 'Delete unknown service';
