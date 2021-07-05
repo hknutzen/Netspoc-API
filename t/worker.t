@@ -1444,8 +1444,8 @@ $job = {
                 method => 'create_owner',
                 params => {
                     name     => 'a',
-                    admins   => [ 'b@example.com', 'a@example.com' ],
                     watchers => [ 'c@example.com', 'd@example.com' ],
+                    admins   => [ 'b@example.com', 'a@example.com' ],
                 }
             },
             {
@@ -1465,8 +1465,8 @@ $out = <<'END';
 netspoc/owner
 @@ -1 +1,9 @@
 +owner:a = {
-+ admins = a@example.com,
-+          b@example.com,
++ admins = b@example.com,
++          a@example.com,
 +          ;
 + watchers = c@example.com,
 +            d@example.com,
@@ -1941,14 +1941,6 @@ netspoc/rule/M
 @@ -0,0 +1,25 @@
 +service:multi = {
 + user = network:n2;
-+ deny   src = user;
-+        dst = network:n1;
-+        prt = tcp 22;
-+ deny   src = host:h5;
-+        dst = user;
-+        prt = icmp 4,
-+              udp,
-+              ;
 + permit src = user;
 +        dst = interface:r1.n1,
 +              host:[network:n1]
@@ -1960,8 +1952,16 @@ netspoc/rule/M
 +              ;
 + permit src = user;
 +        dst = host:h4;
-+        prt = tcp 80-85,
++        prt = tcp 80 - 85,
 +              tcp 90,
++              ;
++ deny   src = user;
++        dst = network:n1;
++        prt = tcp 22;
++ deny   src = host:h5;
++        dst = user;
++        prt = icmp 4,
++              udp,
 +              ;
 +}
 END
@@ -2058,7 +2058,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Invalid 'Action': 'allow'
+Error: Expected 'permit' or 'deny' at line 1 of command line, near "network:n1; --HERE-->allow"
 END
 
 test_err($title, $in, $job, $out);
@@ -2083,7 +2083,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Typed name expected at line 1 of command line, near "--HERE-->_user_"
+Error: Typed name expected at line 1 of command line, near "src=--HERE-->_user_"
 END
 
 test_err($title, $in, $job, $out);
@@ -2108,7 +2108,7 @@ $job = {
 };
 
 $out = <<'END';
-Error: Unknown element type at line 1 of command line, near "--HERE-->net:n2"
+Error: Unknown element type at line 1 of command line, near "dst=--HERE-->net:n2"
 END
 
 test_err($title, $in, $job, $out);
@@ -2117,20 +2117,9 @@ test_err($title, $in, $job, $out);
 $title = 'Add service, invalid protocol';
 ############################################################
 
-$job = {
-    method => 'create_service',
-    params => {
-        name  => 's1',
-        user  => 'network:n1',
-        rules => [
-            {
-                action => 'permit',
-                src    => 'user',
-                dst    => 'network:n2',
-                prt    => 'udp6',
-            }]
-    }
-};
+$job = { method => 'create_service', params => { name => 's1', user =>
+    'network:n1', rules => [ { action => 'permit', src => 'user', dst
+    => 'network:n2', prt => 'udp6', }] } };
 
 $out = <<'END';
 Error: Unknown protocol in 'udp6' of service:s1
@@ -2245,6 +2234,62 @@ netspoc/rule/S
 END
 
 test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Add service with attributes';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+END
+
+$job = {
+    method => 'create_toplevel',
+    params => {
+        definition  => <<'END',
+service:t1 = {
+ description = abc def # ghi
+ disable_at = 2099-02-03;
+ has_unenforceable;
+ user = network:n1;
+ permit src = user; dst = network:n1, network:n2; prt = tcp 80; log = high;
+}
+END
+        file => 'T',
+    },
+};
+
+$out = <<'END';
+Warning: Referencing unknown 'high' in log of service:t1
+---
+netspoc/T
+@@ -0,0 +1,14 @@
++service:t1 = {
++ description = abc def
++
++ disable_at = 2099-02-03;
++ has_unenforceable;
++
++ user = network:n1;
++ permit src = user;
++        dst = network:n1,
++              network:n2,
++              ;
++        prt = tcp 80;
++        log = high;
++}
+END
+
+test_err($title, $in, $job, $out);
 
 ############################################################
 $title = 'Delete service';
@@ -2976,6 +3021,55 @@ netspoc/service
   permit src = user;
          dst = host:h3;
          prt = tcp;
+END
+
+test_run($title, $in, $job, $out);
+
+############################################################
+$title = 'Add pathrestriction';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+
+router:r2 = {
+ managed;
+ model = ASA;
+ interface:n1 = { ip = 10.1.1.2; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.2; hardware = n2; }
+}
+END
+
+$job = {
+    method => 'create_toplevel',
+    params => {
+        definition  => <<'END',
+pathrestriction:p = interface:r1.n1, interface:r1.n2;
+END
+        file => 'topology',
+    },
+};
+
+$out = <<'END';
+netspoc/topology
+@@ -14,3 +14,8 @@
+  interface:n1 = { ip = 10.1.1.2; hardware = n1; }
+  interface:n2 = { ip = 10.1.2.2; hardware = n2; }
+ }
++
++pathrestriction:p =
++ interface:r1.n1,
++ interface:r1.n2,
++;
 END
 
 test_run($title, $in, $job, $out);

@@ -36,6 +36,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -64,12 +65,14 @@ func main() {
 }
 
 type job struct {
-	Method string          `json:"method"`
-	Params json.RawMessage `json:"params"`
-	Crq    string          `json:"crq"`
+	Method string
+	Params json.RawMessage
+	Crq    string
 }
 
 var handler = map[string]func(*state, *job){
+	"create_toplevel":  (*state).createToplevel,
+	"delete_toplevel":  (*state).deleteToplevel,
 	"create_host":      (*state).createHost,
 	"modify_host":      (*state).modifyHost,
 	"create_owner":     (*state).createOwner,
@@ -114,7 +117,7 @@ func (s *state) doJob(j *job) {
 
 func (s *state) multiJob(j *job) {
 	var p struct {
-		Jobs []*job `json:"jobs"`
+		Jobs []*job
 	}
 	getParams(j, &p)
 	for _, sub := range p.Jobs {
@@ -124,11 +127,11 @@ func (s *state) multiJob(j *job) {
 
 func (s *state) createHost(j *job) {
 	var p struct {
-		Network string `json:"network"`
-		Name    string `json:"name"`
-		IP      string `json:"ip"`
-		Mask    string `json:"mask"`
-		Owner   string `json:"owner"`
+		Network string
+		Name    string
+		IP      string
+		Mask    string
+		Owner   string
 	}
 	getParams(j, &p)
 	network := p.Network
@@ -190,8 +193,8 @@ func (s *state) createHost(j *job) {
 
 func (s *state) modifyHost(j *job) {
 	var p struct {
-		Name  string `json:"name"`
-		Owner string `json:"owner"`
+		Name  string
+		Owner string
 	}
 	getParams(j, &p)
 	host := p.Name
@@ -228,8 +231,70 @@ func (s *state) modifyHost(j *job) {
 	}
 }
 
+func (s *state) createToplevel(j *job) {
+	var p struct {
+		Definition string
+		File       string
+		OkIfExists bool `json:"ok_if_exists"`
+	}
+	getParams(j, &p)
+	obj, err := parser.ParseToplevel([]byte(p.Definition))
+	checkErr(err)
+	file := path.Clean(p.File)
+	if path.IsAbs(file) {
+		abortf("Invalid absolute filename: %s", file)
+	}
+	if file == "" || file[0] == '.' {
+		abortf("Invalid filename %s", file)
+	}
+	// Do nothing if node already exists.
+	if p.OkIfExists {
+		name := obj.GetName()
+		found := false
+		s.Modify(func(n ast.Toplevel) bool {
+			if name == n.GetName() {
+				found = true
+			}
+			return false
+		})
+		if found {
+			return
+		}
+	}
+	obj.Order()
+	s.CreateToplevel(file, obj)
+}
+
+func (s *state) deleteToplevel(j *job) {
+	var p struct {
+		Name string
+	}
+	getParams(j, &p)
+	checkErr(s.DeleteToplevel(p.Name))
+}
+
+func (s *state) deleteOwner(j *job) {
+	var p struct {
+		Name string
+	}
+	getParams(j, &p)
+	name := "owner:" + p.Name
+	checkErr(s.DeleteToplevel(name))
+}
+
+func (s *state) deleteService(j *job) {
+	var p struct {
+		Name string
+	}
+	getParams(j, &p)
+	name := "service:" + p.Name
+	checkErr(s.DeleteToplevel(name))
+}
+
+type jsonMap map[string]interface{}
+
 func getOwnerPath(name string) string {
-	file := "netspoc/owner"
+	file := "owner"
 	if strings.HasPrefix(name, "DA_TOKEN_") {
 		file += "-token"
 	}
@@ -238,39 +303,31 @@ func getOwnerPath(name string) string {
 
 func (s *state) createOwner(j *job) {
 	var p struct {
-		Name       string   `json:"name"`
-		Admins     []string `json:"admins"`
-		Watchers   []string `json:"watchers"`
-		OkIfExists int      `json:"ok_if_exists"`
+		Name       string
+		Admins     []string
+		Watchers   []string
+		OkIfExists int `json:"ok_if_exists"`
 	}
 	getParams(j, &p)
-	name := "owner:" + p.Name
-	file := getOwnerPath(p.Name)
-	nodes := s.GetFileNodes(file)
-	// Do nothing if owner already exists.
-	if p.OkIfExists != 0 {
-		for _, toplevel := range nodes {
-			if name == toplevel.GetName() {
-				return
-			}
-		}
-	}
-	obj := new(ast.TopStruct)
-	obj.Name = name
-	aAttr := ast.CreateAttr("admins", p.Admins)
-	obj.Attributes = append(obj.Attributes, aAttr)
+	watchers := ""
 	if p.Watchers != nil {
-		wAttr := ast.CreateAttr("watchers", p.Watchers)
-		obj.Attributes = append(obj.Attributes, wAttr)
+		watchers = fmt.Sprintf("watchers = %s;", strings.Join(p.Watchers, ", "))
 	}
-	s.CreateToplevel(file, obj)
+	def := fmt.Sprintf("owner:%s = { admins = %s; %s}",
+		p.Name, strings.Join(p.Admins, ", "), watchers)
+	params, _ := json.Marshal(jsonMap{
+		"definition":   def,
+		"file":         getOwnerPath(p.Name),
+		"ok_if_exists": p.OkIfExists != 0,
+	})
+	s.createToplevel(&job{Params: params})
 }
 
 func (s *state) modifyOwner(j *job) {
 	var p struct {
-		Name     string   `json:"name"`
-		Admins   []string `json:"admins"`
-		Watchers []string `json:"watchers"`
+		Name     string
+		Admins   []string
+		Watchers []string
 	}
 	getParams(j, &p)
 	owner := "owner:" + p.Name
@@ -281,19 +338,10 @@ func (s *state) modifyOwner(j *job) {
 	}))
 }
 
-func (s *state) deleteOwner(j *job) {
-	var p struct {
-		Name string `json:"name"`
-	}
-	getParams(j, &p)
-	name := "owner:" + p.Name
-	s.DeleteToplevel(name)
-}
-
 func (s *state) addToGroup(j *job) {
 	var p struct {
-		Name   string `json:"name"`
-		Object string `json:"object"`
+		Name   string
+		Object string
 	}
 	getParams(j, &p)
 	group := "group:" + p.Name
@@ -309,7 +357,7 @@ func (s *state) addToGroup(j *job) {
 }
 
 func getServicePath(name string) string {
-	file := "netspoc/rule/"
+	file := "rule"
 	if !fileop.IsDir(file) {
 		err := os.Mkdir(file, 0777)
 		if err != nil {
@@ -319,60 +367,50 @@ func getServicePath(name string) string {
 	s0 := strings.ToUpper(name[0:1])
 	c0 := s0[0]
 	if 'A' <= c0 && c0 <= 'Z' || '0' <= c0 && c0 <= '9' {
-		file += s0
+		file = path.Join(file, s0)
 	} else {
-		file += "other"
+		file = path.Join(file, "other")
 	}
 	return file
 }
 
 type jsonRule struct {
-	Action string `json:"action"`
-	Src    string `json:"src"`
-	Dst    string `json:"dst"`
-	Prt    string `json:"prt"`
+	Action string
+	Src    string
+	Dst    string
+	Prt    string
 }
 
 func (s *state) createService(j *job) {
 	var p struct {
-		Name        string `json:"name"`
-		User        string `json:"user"`
-		Description string `json:"description"`
+		Name        string
+		Description string
+		User        string
 		Rules       []jsonRule
 	}
 	getParams(j, &p)
-	file := getServicePath(p.Name)
-	name := "service:" + p.Name
-	sv := new(ast.Service)
-	sv.Name = name
-	if t := p.Description; t != "" {
-		d := new(ast.Description)
-		d.Text = t
-		sv.Description = d
+	rules := ""
+	for _, ru := range p.Rules {
+		rules += fmt.Sprintf("%s src=%s; dst=%s; prt=%s; ",
+			ru.Action, ru.Src, ru.Dst, ru.Prt)
 	}
-	users, err := parser.ParseUnion([]byte(p.User))
-	checkErr(err)
-	sv.User = &ast.NamedUnion{Name: "user", Elements: users}
-	for _, jRule := range p.Rules {
-		addSvRule(sv, &jRule)
+	descr := ""
+	if p.Description != "" {
+		descr = "description = " + p.Description + "\n"
 	}
-	sv.Order()
-	s.CreateToplevel(file, sv)
-}
-
-func (s *state) deleteService(j *job) {
-	var p struct {
-		Name string `json:"name"`
-	}
-	getParams(j, &p)
-	name := "service:" + p.Name
-	checkErr(s.DeleteToplevel(name))
+	def := fmt.Sprintf("service:%s = { %s user = %s; %s }",
+		p.Name, descr, p.User, rules)
+	params, _ := json.Marshal(jsonMap{
+		"definition": def,
+		"file":       getServicePath(p.Name),
+	})
+	s.createToplevel(&job{Params: params})
 }
 
 func (s *state) addToUser(j *job) {
 	var p struct {
-		Service string `json:"service"`
-		User    string `json:"user"`
+		Service string
+		User    string
 	}
 	getParams(j, &p)
 	service := "service:" + p.Service
@@ -388,8 +426,8 @@ func (s *state) addToUser(j *job) {
 
 func (s *state) removeFromUser(j *job) {
 	var p struct {
-		Service string `json:"service"`
-		User    string `json:"user"`
+		Service string
+		User    string
 	}
 	getParams(j, &p)
 	service := "service:" + p.Service
@@ -401,11 +439,11 @@ func (s *state) removeFromUser(j *job) {
 
 func (s *state) addToRule(j *job) {
 	var p struct {
-		Service string `json:"service"`
-		RuleNum int    `json:"rule_num"`
-		Src     string `json:"src"`
-		Dst     string `json:"dst"`
-		Prt     string `json:"prt"`
+		Service string
+		RuleNum int `json:"rule_num"`
+		Src     string
+		Dst     string
+		Prt     string
 	}
 	getParams(j, &p)
 	service := "service:" + p.Service
@@ -434,11 +472,11 @@ func (s *state) addToRule(j *job) {
 
 func (s *state) removeFromRule(j *job) {
 	var p struct {
-		Service string `json:"service"`
-		RuleNum int    `json:"rule_num"`
-		Src     string `json:"src"`
-		Dst     string `json:"dst"`
-		Prt     string `json:"prt"`
+		Service string
+		RuleNum int `json:"rule_num"`
+		Src     string
+		Dst     string
+		Prt     string
 	}
 	getParams(j, &p)
 	service := "service:" + p.Service
@@ -470,7 +508,7 @@ func (s *state) removeFromRule(j *job) {
 
 func (s *state) addRule(j *job) {
 	var p struct {
-		Service string `json:"service"`
+		Service string
 		jsonRule
 	}
 	getParams(j, &p)
@@ -483,8 +521,8 @@ func (s *state) addRule(j *job) {
 
 func (s *state) deleteRule(j *job) {
 	var p struct {
-		Service string `json:"service"`
-		RuleNum int    `json:"rule_num"`
+		Service string
+		RuleNum int `json:"rule_num"`
 	}
 	getParams(j, &p)
 	service := "service:" + p.Service
