@@ -10,9 +10,6 @@ set -e
 # commands in the pipeline exit successfully.
 set -o pipefail
 
-# Called scripts are searched in directory of current script.
-path=$(dirname $(readlink -f $0))
-
 # Check parameter
 verbose=''
 if getopts 'v' flag; then
@@ -39,7 +36,7 @@ rm -rf netspoc.orig
 cp -r netspoc netspoc.orig
 
 info "Applying changes and compiling files"
-if ! $path/worker $*  2>err; then
+if ! modify-netspoc-api netspoc $*  2>err; then
     case $(cat err) in
         "Error: While reading netspoc files:"*) abort-try-again;;
         *)
