@@ -36,7 +36,7 @@ rm -rf netspoc.orig
 cp -r netspoc netspoc.orig
 
 info "Applying changes and compiling files"
-if ! modify-netspoc-api netspoc $*  2>err; then
+if ! modify-netspoc-api -q netspoc $*  2>err; then
     case $(cat err) in
         "Error: While reading netspoc files:"*) abort-try-again;;
         *)
