@@ -32,8 +32,9 @@ cvs -Q checkout -P netspoc 2>err ||
     abort-err "Error during initial cvs checkout:"
 
 # Copy unchanged netspoc files for further inspection in case of errors.
-rm -rf netspoc.orig
-cp -r netspoc netspoc.orig
+rm -rf orig
+mkdir orig
+cp -r netspoc orig/netspoc
 
 info "Applying changes and compiling files"
 if ! modify-netspoc-api -q netspoc $*  2>err; then
@@ -55,7 +56,7 @@ else
 fi
 
 info "Checking original files for errors or warnings"
-if ! netspoc -q netspoc.orig 2>err.orig ; then
+if ! (cd orig; netspoc -q netspoc 2>../err.orig; ) then
 
     # Current state has files that won't compile.
     abort-try-again

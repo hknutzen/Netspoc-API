@@ -128,6 +128,8 @@ owner:DA_abc = { admins = abc@example.com; }
 network:a = { ip = 10.1.0.0/21; owner = DA_abc;
  host:name_10_1_1_4 = { ip = 10.1.1.4; owner = DA_abc; }
 }
+-- empty
+# comment
 END
 
 $job = {
