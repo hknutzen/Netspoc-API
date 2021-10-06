@@ -146,8 +146,7 @@ Parameters:
   - action: One of "permit" or "deny".
   - src: String with [object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition).
   - dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
-  - prt: String with comma separated list of protocols where protocol is
-    simple protocol or reference to either protocol or protocolgroup.
+  - prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
 
 #### delete_service
 
@@ -185,7 +184,7 @@ Parameters:
 - rule_num: Number of rule that will be changed. Rules count from 1.
 - src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
 - dst: Like 'src'.
-- prt: String with comma separated list of protocols.
+- prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
 
 #### remove_from_rule
 
@@ -197,7 +196,7 @@ Parameters:
 - rule_num: Number of rule that will be changed.
 - src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
 - dst: Like 'src'.
-- prt: String with comma separated list list of protocols.
+- prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
 
 #### add_rule
 
@@ -212,7 +211,7 @@ Parameters:
 - action: One of "permit" or "deny".
 - src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
 - dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
-- prt: String with comma separated list of protocols.
+- prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
 
 #### delete_rule
 
