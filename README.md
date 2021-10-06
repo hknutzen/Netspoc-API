@@ -128,7 +128,7 @@ Add object to existing group.
 Parameters:
 
 - name: Name of group.
-- object: Object set in Netspoc syntax. Multiple values allowed.
+- object: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects). Multiple values allowed.
 
 #### create_service
 
@@ -141,10 +141,10 @@ Parameters:
 
 - name: Name of service.
 - description: Optional description text.
-- user: Object set in Netspoc syntax.
+- user: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects).
 - rules: Array of JSON objects defining rules:
   - action: One of "permit" or "deny".
-  - src: String with object set with 'user' in Netspoc syntax.
+  - src: String with [object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition).
   - dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
   - prt: String with comma separated list of protocols where protocol is
     simple protocol or reference to either protocol or protocolgroup.
@@ -164,7 +164,7 @@ Add objects to user list of existing service.
 Parameters:
 
 - service: Name of service.
-- user: Object set in Netspoc syntax. Multiple values allowed.
+- user: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects). Multiple values allowed.
 
 #### remove_from_user
 
@@ -173,7 +173,7 @@ Remove objects from user list of existing service.
 Parameters:
 
 - service: Name of service.
-- user: Object set in Netspoc syntax. Multiple values allowed.
+- user: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects). Multiple values allowed.
 
 #### add_to_rule
 
@@ -183,7 +183,7 @@ Parameters:
 
 - service: Name of service.
 - rule_num: Number of rule that will be changed. Rules count from 1.
-- src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
+- src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
 - dst: Like 'src'.
 - prt: String with comma separated list of protocols.
 
@@ -195,7 +195,7 @@ Parameters:
 
 - service: Name of service.
 - rule_num: Number of rule that will be changed.
-- src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
+- src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
 - dst: Like 'src'.
 - prt: String with comma separated list list of protocols.
 
@@ -210,7 +210,7 @@ Parameters:
 
 - service: Name of service.
 - action: One of "permit" or "deny".
-- src: Object set with 'user' in Netspoc syntax. Multiple values allowed.
+- src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
 - dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
 - prt: String with comma separated list of protocols.
 
@@ -229,7 +229,7 @@ Create new toplevel object.
 
 Parameters:
 
-- definition: Definition of toplevel object in Netspoc syntax
+- definition: [Definition of toplevel object in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#netspoc-configuration).
 - file: Name of file, where object is inserted. Name is given relative to directory of netspoc files.
 - ok_if_exists: If this attribute is set and this object already exists, this job is silently ignored, but counts as succeeded in multi_job.
 
