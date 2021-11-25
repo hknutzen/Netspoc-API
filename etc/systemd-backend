@@ -1,0 +1,20 @@
+[Unit]
+Description=Start backend of Netspoc-API
+After=network.target
+Wants=network-online.target
+
+[Service]
+Restart=always
+Type=simple
+User=netspoc-api
+Environment="FRONTEND=${USER}@frontend-server"
+Environment="RUNNER=${HOME}/bin/process-queue"
+Environment="WORKER=${HOME}/bin/cvs-worker"
+WorkingDirectory=~
+
+# Start service with initial login to load environment variables
+ExecStart=/bin/bash -l -c "${RUNNER} ${FRONTEND} ${WORKER}"
+ExecStop=/usr/bin/killall -g -u ${USER} -- $(basename ${RUNNER})
+
+[Install]
+WantedBy=multi-user.target
