@@ -182,6 +182,7 @@ Parameters:
 
 - service: Name of service.
 - rule_num: Number of rule that will be changed. Rules count from 1.
+- rule_count: Number of expected rules of this service. Job aborts if expected and real number differ. Is not checked if parameter is missing or has zero value.
 - src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
 - dst: Like 'src'.
 - prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
@@ -194,6 +195,7 @@ Parameters:
 
 - service: Name of service.
 - rule_num: Number of rule that will be changed.
+- rule_count: Number of expected rules of this service. Job aborts if expected and real number differ. Is not checked if parameter is missing or has zero value.
 - src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
 - dst: Like 'src'.
 - prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
@@ -221,6 +223,7 @@ Parameters:
 
 - service: Name of service.
 - rule_num: Number of rule that will be deleted.
+- rule_count: Number of expected rules of this service. Job aborts if expected and real number differ. Is not checked if parameter is missing or has zero value.
 
 #### create_toplevel
 
