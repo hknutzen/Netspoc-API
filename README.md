@@ -11,7 +11,7 @@ Netspoc configuration.
 * [Jobs](#jobs)
   * [create_host](#create_host)
   * [modify_host](#modify_host)
-  * [create_interface] (#create_interface)
+  * [create_interface](#create_interface)
   * [create_owner](#create_owner)
   * [modify_owner](#modify_owner)
   * [delete_owner](#delete_owner)
