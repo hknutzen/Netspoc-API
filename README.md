@@ -11,6 +11,7 @@ Netspoc configuration.
 * [Jobs](#jobs)
   * [create_host](#create_host)
   * [modify_host](#modify_host)
+  * [create_interface] (#create_interface)
   * [create_owner](#create_owner)
   * [modify_owner](#modify_owner)
   * [delete_owner](#delete_owner)
@@ -87,6 +88,18 @@ Parameters:
 
 - name: Name of host.
 - owner: Change or add owner of this host.
+
+#### create_interface
+
+Add VIP Interface to existing router.
+
+Parameters:
+
+- router: Name of router to add interface to.
+- name: Name of interface.
+- ip: IP of Interface.
+- owner: Optional owner of Interface.
+- vip: boolean if VIP Interface
 
 #### create_owner
 
