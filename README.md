@@ -201,9 +201,6 @@ Parameters:
 
 - name: Name of service.
 - description: Optional description text.
-- attributes: Array of arrays with key value pairs.
-  0. Name of some valid [attribute](http://hknutzen.github.io/Netspoc/syntax.html#service-definition),
-  1. String value (may be omitted if empty).
 - user: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects).
 - rules: Array of JSON objects defining rules:
   - action: One of "permit" or "deny".
