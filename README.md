@@ -9,6 +9,9 @@ Netspoc configuration.
 * [Asynchronous processing](#asynchronous-processing)
 * [Authentication](#authentication)
 * [Jobs](#jobs)
+  * [add](#add)
+  * [delete](#delete)
+  * [replace](#replace)
   * [create_host](#create_host)
   * [modify_host](#modify_host)
   * [create_interface](#create_interface)
@@ -64,6 +67,50 @@ Each job has at least these attributes:
 - params: JSON object with additional attributes.
    Different methods have different set of parameters.
 - crq: Description of change request, used for commit message.
+
+#### add
+#### delete
+#### replace
+
+These are generic methods to modify any part of the Netspoc configuration.
+
+Parameters:
+
+- path: Location that is to be changed. This is a comma separated list of names,
+  starting with the name of some toplevel object.
+- value: The value, given as JSON, that is to be inserted or removed.
+- ok_if_exists: Optional boolean value, that suppresses the error message
+  if an added toplevel object already exists.
+
+All names in "path" correspond directly to names in
+[Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html)
+with these extensions:
+1. Rules of a services are referenced by name 'rules'.
+2. An individual rule is referenced by its rule number (first index is 1).
+3. A rule number may be given together with the total number of rules of a service as "2/3", meaning rule number 2 of 3. This is used as an additional check, tht the rule number has not changed unexpectedly. A job aborts if expected and real number of rules differ.
+
+When a new rule is added, no rule index is given,
+because written order of rules doesn't matter.
+
+If an attribute has a list of values e.g. "src=host:h1,host:h2,host:h3;"
+the order also doesn't matter.
+An existing value is accessed by value, not by index.
+Example:
+
+    { "method": "delete",
+      "params": { "path": "service:s1,rules,1,src", "value": "host:h2" }
+    }
+
+
+Another Example:
+
+    ##### Add new network with name n2
+    { "method": "delete",
+      "params": {
+        "path": "network:n2",
+        "value": { "ip": "10.1.2.0/24" }
+      }
+    }
 
 #### create_host
 
@@ -154,6 +201,9 @@ Parameters:
 
 - name: Name of service.
 - description: Optional description text.
+- attributes: Array of arrays with key value pairs.
+  0. Name of some valid [attribute](http://hknutzen.github.io/Netspoc/syntax.html#service-definition),
+  1. String value (may be omitted if empty).
 - user: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects).
 - rules: Array of JSON objects defining rules:
   - action: One of "permit" or "deny".
