@@ -87,7 +87,7 @@ All names in "path" correspond directly to names in
 with these extensions:
 1. Rules of a services are referenced by name 'rules'.
 2. An individual rule is referenced by its rule number (first index is 1).
-3. A rule number may be given together with the total number of rules of a service as "2/3", meaning rule number 2 of 3. This is used as an additional check, tht the rule number has not changed unexpectedly. A job aborts if expected and real number of rules differ.
+3. A rule number may be given together with the total number of rules of a service as "2/3", meaning rule number 2 of 3. This is used as an additional check, that the rule number has not changed unexpectedly. A job aborts if expected and real number of rules differ.
 
 When a new rule is added, no rule index is given,
 because written order of rules doesn't matter.
@@ -105,7 +105,7 @@ Example:
 Another Example:
 
     ##### Add new network with name n2
-    { "method": "delete",
+    { "method": "add",
       "params": {
         "path": "network:n2",
         "value": { "ip": "10.1.2.0/24" }
