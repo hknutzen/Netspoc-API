@@ -14,20 +14,12 @@ Netspoc configuration.
   * [replace](#replace)
   * [create_host](#create_host)
   * [modify_host](#modify_host)
-  * [create_interface](#create_interface)
+  * [multi_job](#multi_job)
+* [Deprecated methods](#deprecated-methods)
   * [create_owner](#create_owner)
   * [modify_owner](#modify_owner)
   * [delete_owner](#delete_owner)
   * [add_to_group](#add_to_group)
-  * [create_service](#create_service)
-  * [delete_service](#delete_service)
-  * [add_to_user](#add_to_user)
-  * [remove_from_user](#remove_from_user)
-  * [add_to_rule](#add_to_rule)
-  * [remove_from_rule](#remove_from_rule)
-  * [add_rule](#add_rule)
-  * [delete_rule](#delete_rule)
-  * [multi_job](#multi_job)
 
 
 ### Asynchronous processing
@@ -102,14 +94,126 @@ Example:
     }
 
 
-Another Example:
+More examples:
 
-    ##### Add new network with name n2
+###### Add new network
+
     { "method": "add",
       "params": {
         "path": "network:n2",
         "value": { "ip": "10.1.2.0/24" }
       }
+    }
+
+##### Add VIP interface to existing router.
+
+    { "method": "add",
+      "params": {
+        "path": "router:r1,interface:VIP",
+        "value": {
+            "ip": "10.1.2.0/24",
+            "vip": null,
+            "owner": "o1"
+        }
+      }
+    }
+
+##### Create service
+
+    {
+        "method": "add",
+        "params": {
+            "path": "service:s1",
+            "value": {
+                "description": "This one",
+                "disable_at": "2099-12-31",
+                "user": ["host:[network:n1] &! host:h4", "interface:r1.n1"],
+                "rules": [
+                    {
+                        "action": "permit",
+                        "src": "user",
+                        "dst": ["network:n2", "host:h3"],
+                        "prt": "tcp 80"
+                    }
+                ]
+            }
+        }
+    }
+
+##### Delete service
+
+    {
+        "method": "delete",
+        "params": {
+            "path": "service:s1"
+        }
+    }
+
+
+##### Add to user of service
+
+    {
+        "method": "add",
+        "params": {
+            "path": "service:s1,user",
+            "value": ["host:h4", "host:h6"]
+        }
+    }
+
+##### Add to rule
+
+Add host:h4 to destination of first rule of service:s2, but check,
+that s2 has 3 rules.
+
+    {
+        "method": "add",
+        "params": {
+            "path": "service:s1,rules,1/3,dst",
+            "value": "host:h4"
+        }
+    }
+
+##### Add rule
+    {
+        "method": "add",
+        "params": {
+            "path": "service:s1,rules",
+            "value": {
+                "action": "permit",
+                "src": "user",
+                "dst": ["host:h5", "interface:r1.n2"],
+                "prt": ["udp 123", "icmp"]
+            }
+        }
+    }
+
+##### Add element to group
+
+    {
+        "method": "add",
+        "params": {
+            "path": "group:g1",
+            "value": "host:h_10_1_2_7"
+        }
+    }
+
+##### Delete element from group
+
+    {
+        "method": "delete",
+        "params": {
+            "path": "group:g1",
+            "value": "host:h_10_1_2_7"
+        }
+    }
+
+##### Delete group
+
+    {
+        "method": "delete",
+        "params": {
+            "path": "group:g1"
+        }
     }
 
 #### create_host
@@ -136,17 +240,17 @@ Parameters:
 - name: Name of host.
 - owner: Change or add owner of this host.
 
-#### create_interface
+#### multi_job
 
-Add VIP Interface to existing router.
+Execute multiple jobs. Change is only applied, if all jobs succeed.
 
-Parameters:
+Parameter:
 
-- router: Name of router to add interface to.
-- name: Name of interface.
-- ip: IP of Interface.
-- owner: Optional owner of Interface.
-- vip: boolean if VIP Interface
+- jobs: Array of jobs.
+
+### Deprecated methods
+
+These methods are deprecated and should not be used by new projects.
 
 #### create_owner
 
@@ -189,120 +293,3 @@ Parameters:
 
 - name: Name of group.
 - object: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects). Multiple values allowed.
-
-#### create_service
-
-Create service with user and rules.
-Service is inserted in file ```netspoc/rule/X```,
-where 'X' is first letter of service name converted to upper case.
-This applies to alphanumeric letter. Otherwise file ```netspoc/rule/other``` is used.
-
-Parameters:
-
-- name: Name of service.
-- description: Optional description text.
-- user: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects).
-- rules: Array of JSON objects defining rules:
-  - action: One of "permit" or "deny".
-  - src: String with [object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition).
-  - dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
-  - prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
-
-#### delete_service
-
-Delete existing service.
-
-Parameters:
-
-- name: Name of service.
-
-#### add_to_user
-
-Add objects to user list of existing service.
-
-Parameters:
-
-- service: Name of service.
-- user: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects). Multiple values allowed.
-
-#### remove_from_user
-
-Remove objects from user list of existing service.
-
-Parameters:
-
-- service: Name of service.
-- user: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects). Multiple values allowed.
-
-#### add_to_rule
-
-Add to src, dst or prt in rule of existing service.
-
-Parameters:
-
-- service: Name of service.
-- rule_num: Number of rule that will be changed. Rules count from 1.
-- rule_count: Number of expected rules of this service. Job aborts if expected and real number differ. Is not checked if parameter is missing or has zero value.
-- src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
-- dst: Like 'src'.
-- prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
-
-#### remove_from_rule
-
-Remove from src, dst or prt in rule of existing service.
-
-Parameters:
-
-- service: Name of service.
-- rule_num: Number of rule that will be changed.
-- rule_count: Number of expected rules of this service. Job aborts if expected and real number differ. Is not checked if parameter is missing or has zero value.
-- src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
-- dst: Like 'src'.
-- prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
-
-#### add_rule
-
-Add rule to existing service.
-Permit rule is appended at end of existing rules.
-Deny rule is added after last deny rule if one exists or as first
-rule otherwise.
-
-Parameters:
-
-- service: Name of service.
-- action: One of "permit" or "deny".
-- src: [Object set with 'user' in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#service-definition). Multiple values allowed.
-- dst: Like 'src'. One of 'src' and 'dst' must reference 'user'.
-- prt: [List of protocols in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#groups-of-protocols).
-
-#### delete_rule
-
-Delete rule from existing service.
-
-Parameters:
-
-- service: Name of service.
-- rule_num: Number of rule that will be deleted.
-- rule_count: Number of expected rules of this service. Job aborts if expected and real number differ. Is not checked if parameter is missing or has zero value.
-
-#### create_toplevel
-
-Create new toplevel object.
-
-Parameters:
-
-- definition: [Definition of toplevel object in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#netspoc-configuration).
-- file: Name of file, where object is inserted. Name is given relative to directory of netspoc files.
-- ok_if_exists: If this attribute is set and this object already exists, this job is silently ignored, but counts as succeeded in multi_job.
-
-#### delete_toplevel
-
-- name: Name of object.
-
-#### multi_job
-
-Execute multiple jobs. Change is only applied, if all jobs succeed.
-
-Parameter:
-
-- jobs: Array of jobs.
