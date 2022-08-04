@@ -11,7 +11,7 @@ Netspoc configuration.
 * [Jobs](#jobs)
   * [add](#add)
   * [delete](#delete)
-  * [replace](#replace)
+  * [set](#set)
   * [create_host](#create_host)
   * [modify_host](#modify_host)
   * [multi_job](#multi_job)
@@ -62,9 +62,30 @@ Each job has at least these attributes:
 
 #### add
 #### delete
-#### replace
+#### set
 
 These are generic methods to modify any part of the Netspoc configuration.
+
+Method 'add' adds
+- a new toplevel node,
+- a new attribute inside a node or
+- a new value inside the list of values of an attribute.
+It is an error
+- to add a toplevel node that already exists or
+- to add to an attribute, that has a structured value.
+
+Method 'delete' deletes
+- an existing toplevel node,
+- an existing attribute inside a node or
+- an existing value inside a list of values of an attribute.
+It is an error
+- to delete a toplevel node that doesn't exist or
+- to delete an attribute that doesn't exist inside a node or
+- to delete a non existing value from the list of values of an attribute.
+
+Method 'set'
+- replaces or adds a toplevel node or
+- replaces or adds an attribute inside a node.
 
 Parameters:
 
@@ -207,6 +228,16 @@ that s2 has 3 rules.
         }
     }
 
+##### Change elements of group
+
+    {
+        "method": "set",
+        "params": {
+            "path": "group:g1",
+            "value": [ "host:h_10_1_2_7", "network:n1" ]
+        }
+    }
+
 ##### Delete group
 
     {
@@ -216,6 +247,7 @@ that s2 has 3 rules.
         }
     }
 
+##### Replace attribute 'owner' of host
 #### create_host
 
 Add host to existing network.
