@@ -98,9 +98,10 @@ Parameters:
 All names in "path" correspond directly to names in
 [Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html)
 with these extensions:
+1. Elements of group or pathrestriction are referenced by name 'elements'.
 1. Rules of a services are referenced by name 'rules'.
-2. An individual rule is referenced by its rule number (first index is 1).
-3. A rule number may be given together with the total number of rules of a service as "2/3", meaning rule number 2 of 3. This is used as an additional check, that the rule number has not changed unexpectedly. A job aborts if expected and real number of rules differ.
+1. An individual rule is referenced by its rule number (first index is 1).
+1. A rule number may be given together with the total number of rules of a service as "2/3", meaning rule number 2 of 3. This is used as an additional check, that the rule number has not changed unexpectedly. A job aborts if expected and real number of rules differ.
 
 When a new rule is added, no rule index is given,
 because written order of rules doesn't matter.
@@ -213,7 +214,7 @@ that s2 has 3 rules.
     {
         "method": "add",
         "params": {
-            "path": "group:g1",
+            "path": "group:g1,elements",
             "value": "host:h_10_1_2_7"
         }
     }
@@ -223,7 +224,7 @@ that s2 has 3 rules.
     {
         "method": "delete",
         "params": {
-            "path": "group:g1",
+            "path": "group:g1,elements",
             "value": "host:h_10_1_2_7"
         }
     }
@@ -233,7 +234,7 @@ that s2 has 3 rules.
     {
         "method": "set",
         "params": {
-            "path": "group:g1",
+            "path": "group:g1,elements",
             "value": [ "host:h_10_1_2_7", "network:n1" ]
         }
     }
@@ -244,6 +245,19 @@ that s2 has 3 rules.
         "method": "delete",
         "params": {
             "path": "group:g1"
+        }
+    }
+
+##### Add new group
+
+    {
+        "method": "add",
+        "params": {
+            "path": "group:g1",
+            "value": {
+                "description": "Objects located in europe",
+                "elements": [ "host:h_10_1_2_7", "network:n1" ]
+            }
         }
     }
 
