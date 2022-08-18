@@ -255,13 +255,12 @@ that s2 has 3 rules.
         "params": {
             "path": "group:g1",
             "value": {
-                "description": "Objects located in europe",
+                "description": "Objects located in Europe",
                 "elements": [ "host:h_10_1_2_7", "network:n1" ]
             }
         }
     }
 
-##### Replace attribute 'owner' of host
 #### create_host
 
 Add host to existing network.
