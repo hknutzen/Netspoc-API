@@ -14,6 +14,11 @@ fi
 
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 info () { [ $verbose ] && echo "$*" >&2 || true; }
+check-conflict () {
+    if [ -n "$(cat err | egrep '^[^ ]+ update: conflicts found in')" ] ; then
+        abort-err "Merge conflict during cvs update:"
+    fi
+}
 
 # Add job IDs and CRQs to commit message.
 [ $# -gt 1 ] && S=s
@@ -27,6 +32,23 @@ done
 CRQ=$(jq -r '.crq | values' $* | sort -u | paste -s -d' ')
 [ -n "$CRQ" ] && MSG="$MSG
 $CRQ"
+
+# "cvs add" just created files.
+# Redo, if directory was added.
+while true; do
+    redo=''
+    cvs -q update netspoc >out 2>err ||
+        abort-err "Error during cvs update (before commit):"
+    check-conflict
+    # Check for lines like:
+    # "? netspoc/rule/3"
+    # Must enter "netspoc/" directory for "cvs add" to work.
+    for i in $(grep '^\? ' out|cut -c3-|cut -d/ -f2-) ; do
+        (cd netspoc; cvs -q add $i)
+        [ -d "netspoc/$i" ] && redo=1
+    done
+    [ -z $redo ] && break
+done
 
 
 # Try to check in.
@@ -45,8 +67,5 @@ while true; do
     fi
     cvs -q update netspoc >/dev/null 2>err ||
         abort-err "Error during cvs update (after change):"
-    # Check for merge conflict
-    if [ -n "$(cat err | egrep '^[^ ]+ update: conflicts found in')" ] ; then
-        abort-err "Merge conflict during cvs update:"
-    fi
+    check-conflict
 done

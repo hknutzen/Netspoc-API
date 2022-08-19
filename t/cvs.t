@@ -55,17 +55,14 @@ sub test_worker {
 
     # Collect and simplify diff before check in.
     # Show diff even if Netspoc failed.
-    #Index: netspoc/owner
-    #===================================================================
-    #RCS file: /home/diamonds/cvsroot/netspoc/owner,v
-    #retrieving revision 1.1468
-    #diff -u -u -r1.1468 owner
-    #--- netspoc/owner       15 Apr 2019 07:56:13 -0000      1.1468
-    #+++ netspoc/owner       15 Apr 2019 13:27:38 -0000
-    #@@ -5,7 +5,7 @@
-    my $diff = `cvs -Q diff -u netspoc`;
-    $diff =~ s/^Index: //mg;
-    $diff =~ s/^={67}\nRCS .*\nretrieving .*\ndiff .*\n--- .*\n\+\+\+ .*\n//mg;
+    #diff -x CVS -ruN orig/netspoc/rule/S netspoc/rule/S
+    #--- orig/netspoc/rule/S 1970-01-01 01:00:00.000000000 +0100
+    #+++ netspoc/rule/S      2022-08-19 14:46:29.026666333 +0200
+    #@@ -0,0 +1,6 @@
+    my $diff = `diff -x CVS -ruN orig/netspoc netspoc/`;
+    $diff =~ s/^\+\+\+ (.*?)\t.*/$1/mg;
+    $diff =~ s/^diff -x .*\n//mg;
+    $diff =~ s/^--- .*\n//mg;
     $diff =~ s/^ $//m;
 
     # Combine warnings and diff into one message, separated by "---".
@@ -117,6 +114,53 @@ sub test_err {
 }
 
 my ($title, $in, $job, $out, $other);
+
+############################################################
+$title = 'Add service to new file';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+network:n2 = { ip = 10.1.2.0/24; }
+
+router:r1 = {
+ managed;
+ model = IOS;
+ interface:n1 = { ip = 10.1.1.1; hardware = n1; }
+ interface:n2 = { ip = 10.1.2.1; hardware = n2; }
+}
+END
+
+$job = {
+    method => 'add',
+    params => {
+        path => 'service:s1',
+        value => {
+            user => "network:n1",
+            rules => [
+                {
+                    action => 'permit',
+                    src => 'user',
+                    dst => 'network:n2',
+                    prt => 'tcp 80'
+                }]
+        }
+    }
+};
+
+$out = <<'END';
+netspoc/rule/S
+@@ -0,0 +1,6 @@
++service:s1 = {
++ user = network:n1;
++ permit src = user;
++        dst = network:n2;
++        prt = tcp 80;
++}
+END
+
+test_run($title, $in, $job, $out, verbose => 1);
 
 ############################################################
 $title = 'Add host, ignore warning from previous checkin';
@@ -345,7 +389,6 @@ $job = {
 };
 
 $out = <<'END';
-Committing changes
 Merge conflict during cvs update:
 rcsmerge: warning: conflicts during merge
 cvs update: conflicts found in netspoc/topology
