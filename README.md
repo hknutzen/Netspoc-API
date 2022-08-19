@@ -17,8 +17,6 @@ Netspoc configuration.
   * [multi_job](#multi_job)
 * [Deprecated methods](#deprecated-methods)
   * [create_owner](#create_owner)
-  * [modify_owner](#modify_owner)
-  * [delete_owner](#delete_owner)
   * [add_to_group](#add_to_group)
 
 
@@ -307,28 +305,6 @@ Parameters:
 - admins: Array of admins.
 - watchers: Array of watchers
 - ok_if_exists: If this attribute is set and this owner already exists, this job is silently ignored, but counts as succeeded in multi_job.
-
-#### modify_owner
-
-Modify existing owner.
-
-Parameters:
-
-- name: Name of owner.
-- admins: Array of admins.
-- watchers: Array of watchers
-
-If attribute already exists, the new value replaces the old one.
-Use an empty array to remove existing value.
-To change only one attribute, leave the other parameter unspecified.
-
-#### delete_owner
-
-Delete existing owner.
-
-Parameters:
-
-- name: Name of owner.
 
 #### add_to_group
 
