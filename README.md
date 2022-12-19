@@ -92,6 +92,11 @@ Parameters:
 - value: The value, given as JSON, that is to be inserted or removed.
 - ok_if_exists: Optional boolean value, that suppresses the error message
   if an added toplevel object already exists.
+- ipv6: Optional boolean value.
+  This is used to select the wanted router object in a mixed IPv4/IPv6 topology.
+  - If IPv4 is the default, add ```"ipv6": true``` to choose the IPv6 instance
+    of a router object.
+  - If IPv6 is the default, add ```"ipv6": false``` to choose the IPv4 instance.
 
 All names in "path" correspond directly to names in
 [Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html)
