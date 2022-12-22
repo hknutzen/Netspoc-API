@@ -74,7 +74,7 @@ grep '^Warning:' err.orig >warn || true
 # Warning occurred when compiling changed files.
 # Compare with warnings from compiling original files.
 if ! grep '^Warning:' err | cmp -s warn - ; then
-    abort-err "Netspoc show warnings:"
+    abort-err "Netspoc shows warnings:"
 fi
 
 # No additional warnings occurred.
