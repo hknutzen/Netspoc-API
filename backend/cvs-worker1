@@ -41,7 +41,7 @@ if ! modify-netspoc-api -q netspoc $*  2>err; then
     case $(cat err) in
         "Error: While reading netspoc files:"*) abort-try-again;;
         *)
-            abort-err "API failed:"
+            abort-err "Can't modify Netspoc files:"
     esac
 fi
 if netspoc -q netspoc 2>err; then
@@ -65,7 +65,7 @@ fi
 
 # Original files are ok, but changed files failed to compile.
 if [ -n "$FAILED" ] ; then
-    abort-err "Netspoc failed:"
+    abort-err "Netspoc shows errors:"
 fi
 
 # Collect warnings. It is ok if no warnings were found.
@@ -74,7 +74,7 @@ grep '^Warning:' err.orig >warn || true
 # Warning occurred when compiling changed files.
 # Compare with warnings from compiling original files.
 if ! grep '^Warning:' err | cmp -s warn - ; then
-    abort-err "Netspoc warnings:"
+    abort-err "Netspoc show warnings:"
 fi
 
 # No additional warnings occurred.
