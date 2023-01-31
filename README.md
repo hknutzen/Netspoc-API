@@ -105,6 +105,8 @@ with these extensions:
 1. Rules of a services are referenced by name 'rules'.
 1. An individual rule is referenced by its rule number (first index is 1).
 1. A rule number may be given together with the total number of rules of a service as "2/3", meaning rule number 2 of 3. This is used as an additional check, that the rule number has not changed unexpectedly. A job aborts if expected and real number of rules differ.
+1. When deleting or modifying an existing host, the network name may be omitted, since names of hosts are unambiguous. The path then starts directly with name of some host.
+1. The network name may not be omitted for ID hosts like "host:id:a@example.com", because ID host with same ID can be defined in more than one network.
 
 When a new rule is added, no rule index is given,
 because written order of rules doesn't matter.
@@ -140,6 +142,14 @@ More examples:
             "vip": null,
             "owner": "o1"
         }
+      }
+    }
+
+###### Delete host
+
+    { "method": "delete",
+      "params": {
+        "path": "host:h2"
       }
     }
 
@@ -279,15 +289,6 @@ Parameters:
 If name of network is ```[auto]```, the network will be searched by IP
 address and mask.
 
-#### modify_host
-
-Modify existing host.
-
-Parameters:
-
-- name: Name of host.
-- owner: Change or add owner of this host.
-
 #### multi_job
 
 Execute multiple jobs. Change is only applied, if all jobs succeed.
@@ -299,6 +300,15 @@ Parameter:
 ### Deprecated methods
 
 These methods are deprecated and should not be used by new projects.
+
+#### modify_host
+
+Modify existing host.
+
+Parameters:
+
+- name: Name of host.
+- owner: Change or add owner of this host.
 
 #### create_owner
 
