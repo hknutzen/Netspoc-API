@@ -37,13 +37,15 @@ mkdir orig
 cp -r netspoc orig/netspoc
 
 info "Applying changes and compiling files"
-if ! modify-netspoc-api -q netspoc $*  2>err; then
-    case $(cat err) in
-        "Error: While reading netspoc files:"*) abort-try-again;;
-        *)
-            abort-err "Can't modify Netspoc files:"
-    esac
-fi
+for job in $*; do
+    if ! modify-netspoc-api -q netspoc $job  2>err; then
+        case $(cat err) in
+            "Error: While reading netspoc files:"*) abort-try-again;;
+            *)
+                abort-err "Can't modify Netspoc files:"
+        esac
+    fi
+done
 if netspoc -q netspoc 2>err; then
     # Success.
     if [ ! -s err ] ; then
