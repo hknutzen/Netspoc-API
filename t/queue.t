@@ -352,7 +352,7 @@ www_check_status(
     { id => $id2, user => 'test', pass => 'test' },
     <<'END', 'WWW job 2 with errors');
 ERROR
-Netspoc failed:
+Netspoc shows errors:
 Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
 Aborted with 1 error(s)
 END

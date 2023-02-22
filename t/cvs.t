@@ -239,7 +239,7 @@ $out = <<'END';
 Checking out files to ~/netspoc
 Applying changes and compiling files
 Checking original files for errors or warnings
-Netspoc warnings:
+Netspoc shows warnings:
 Warning: Useless owner:DA_abc at host:name_10_1_1_3,
  it was already inherited from any:a
 Warning: Useless owner:DA_abc at host:name_10_1_1_4,
@@ -277,7 +277,7 @@ $job = {
 };
 
 $out = <<'END';
-Netspoc failed:
+Netspoc shows errors:
 Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
 Aborted with 1 error(s)
 ---
@@ -313,7 +313,7 @@ $job = {
 };
 
 $out = <<'END';
-API failed:
+Can't modify Netspoc files:
 Error: Can't find network with 'ip = 10.1.0.0/21'
 ---
 END
