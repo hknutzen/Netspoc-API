@@ -197,7 +197,7 @@ More examples:
 
 ##### Add to rule
 
-Add host:h4 to destination of first rule of service:s2, but check,
+Add host:h4 to destination of first rule of service:s1, but check,
 that s2 has 3 rules.
 
     {
