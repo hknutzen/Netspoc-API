@@ -68,6 +68,7 @@ Method 'add' adds
 - a new toplevel node,
 - a new attribute inside a node or
 - a new value inside the list of values of an attribute.
+
 It is an error
 - to add a toplevel node that already exists or
 - to add to an attribute, that has a structured value.
@@ -76,6 +77,7 @@ Method 'delete' deletes
 - an existing toplevel node,
 - an existing attribute inside a node or
 - an existing value inside a list of values of an attribute.
+
 It is an error
 - to delete a toplevel node that doesn't exist or
 - to delete an attribute that doesn't exist inside a node or
