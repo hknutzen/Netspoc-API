@@ -106,7 +106,7 @@ with these extensions:
 1. An individual rule is referenced by its rule number (first index is 1).
 1. A rule number may be given together with the total number of rules of a service as "2/3", meaning rule number 2 of 3. This is used as an additional check, that the rule number has not changed unexpectedly. A job aborts if expected and real number of rules differ.
 1. When deleting or modifying an existing host, the network name may be omitted, since names of hosts are unambiguous. The path then starts directly with name of some host.
-1. The network name may not be omitted for ID hosts like "host:id:a@example.com", because ID host with same ID can be defined in more than one network.
+1. The network name may not be omitted for ID hosts like ```host:id:a@example.com```, because ID host with same ID can be defined in more than one network.
 
 When a new rule is added, no rule index is given,
 because written order of rules doesn't matter.
