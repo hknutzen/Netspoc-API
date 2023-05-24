@@ -12,10 +12,10 @@ Netspoc configuration.
   * [add](#add)
   * [delete](#delete)
   * [set](#set)
-  * [create_host](#create_host)
-  * [modify_host](#modify_host)
   * [multi_job](#multi_job)
 * [Deprecated methods](#deprecated-methods)
+  * [create_host](#create_host)
+  * [modify_host](#modify_host)
   * [create_owner](#create_owner)
   * [add_to_group](#add_to_group)
 
@@ -276,6 +276,18 @@ that s1 has 3 rules.
         }
     }
 
+#### multi_job
+
+Execute multiple jobs. Change is only applied, if all jobs succeed.
+
+Parameter:
+
+- jobs: Array of jobs.
+
+### Deprecated methods
+
+These methods are deprecated and should not be used by new projects.
+
 #### create_host
 
 Add host to existing network.
@@ -290,18 +302,6 @@ Parameters:
 
 If name of network is ```[auto]```, the network will be searched by IP
 address and mask.
-
-#### multi_job
-
-Execute multiple jobs. Change is only applied, if all jobs succeed.
-
-Parameter:
-
-- jobs: Array of jobs.
-
-### Deprecated methods
-
-These methods are deprecated and should not be used by new projects.
 
 #### modify_host
 
