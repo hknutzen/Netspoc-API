@@ -95,10 +95,13 @@ Parameters:
 - ok_if_exists: Optional boolean value, that suppresses the error message
   if an added toplevel object already exists.
 - ipv6: Optional boolean value.
-  This is used to select the wanted router object in a mixed IPv4/IPv6 topology.
-  - If IPv4 is the default, add ```"ipv6": true``` to choose the IPv6 instance
-    of a router object.
-  - If IPv6 is the default, add ```"ipv6": false``` to choose the IPv4 instance.
+  1. This is used to select the wanted router object in a mixed IPv4/IPv6 topology.
+    - In IPv4 mode, add ```"ipv6": true``` to choose the IPv6 instance.
+    - In IPv6 mode, add ```"ipv6": false``` to choose the IPv4 instance.
+  2. When creating a new toplevel node, this controls if it is placed
+     into a subdirectory.
+    - In IPv4 mode, add ```"ipv6": true``` to place into subdirectory "/ipv6".
+    - In IPv6 mode, add ```"ipv6": false``` to place into subdirectory "/ipv4".
 
 All names in "path" correspond directly to names in
 [Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html)
