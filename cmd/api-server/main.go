@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/crypto/bcrypt"
@@ -96,7 +97,8 @@ func jobStatus(w http.ResponseWriter, job jsonArgs) {
 	cmd := exec.Command("bin/job-status", job.Id, job.User)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		internalErr(w, string(out))
+		msg, _ := strings.CutSuffix(string(out), "\n")
+		internalErr(w, msg)
 	} else {
 		w.Write(out)
 	}
@@ -144,15 +146,18 @@ func authenticate(w http.ResponseWriter, job jsonArgs) bool {
 func loadConfig() error {
 	bytes, err := os.ReadFile(confFile)
 	if err != nil {
-		return fmt.Errorf("Can't read config file: %s ", err)
+		return fmt.Errorf("Can't %s ", err)
 	}
 	err = json.Unmarshal(bytes, &conf)
+	if err != nil {
+		return fmt.Errorf("error while reading %s: %s", confFile, err)
+	}
 	for _, auth := range conf.User {
 		if auth.LDAP && conf.LDAPURI == "" {
 			return fmt.Errorf("No 'ldap_uri' has been configured")
 		}
 	}
-	return err
+	return nil
 }
 
 func badRequest(w http.ResponseWriter, m string) {
