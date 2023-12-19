@@ -8,5 +8,5 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.6 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/uuid v1.3.1 // indirect
-	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 )
