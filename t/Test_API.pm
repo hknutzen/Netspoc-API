@@ -52,19 +52,28 @@ sub prepare_dir {
 sub setup_netspoc {
     my ($dir, $in) = @_;
 
-    # Initialize empty CVS repository.
-    mkdir 'cvsroot';
-    $ENV{CVSROOT} = "$dir/cvsroot";
-    system "cvs init";
+    # Prevent warnings from git.
+    system 'git config --global user.name "Test User"';
+    system 'git config --global user.email ""';
+    system 'git config --global init.defaultBranch master';
+    system 'git config --global pull.rebase true';
 
-    # Create initial netspoc files and put them under CVS control.
-    mkdir('import');
-    prepare_dir('import', $in);
-    chdir 'import';
-    system 'cvs -Q import -m start netspoc vendor version';
+    my $tmp = "$dir/tmp-git";
+    mkdir $tmp;
+    prepare_dir($tmp, $in);
+    chdir $tmp;
+    # Initialize git repository.
+    system 'git init --quiet';
+    system 'git add .';
+    system 'git commit -m initial >/dev/null';
     chdir $dir;
-    system 'rm -r import';
-    system 'cvs -Q checkout netspoc';
+    # Checkout into bare directory
+    my $bare = "$dir/netspoc.git";
+    system "git clone --quiet --bare $tmp $bare";
+    system "rm -rf $tmp";
+    $ENV{NETSPOC_GIT} = "file://$bare";
+    # Checkout into directory 'netspoc'
+    system "git clone --quiet $bare netspoc";
 
     # Create config file .netspoc-approve for newpolicy
     mkdir('policydb');
@@ -72,6 +81,7 @@ sub setup_netspoc {
     write_file('.netspoc-approve', <<"END");
 netspocdir = $dir/policydb
 lockfiledir = $dir/lock
+netspoc_git = file://$bare
 END
 
     # Create files for Netspoc-Approve and create compile.log file.

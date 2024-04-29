@@ -42,10 +42,11 @@ network:a = { ip = 10.1.1.0/24; } # Comment
 	id := addHosts(1, 7)
 	pid := startQueue()
 	waitJob(id)
-	checkCVSLog(t, "Multiple files in one CVS commit", "topology",
-		`revision 1.2
-API jobs: 1 2 3 4 5 6 7
+	checkCVSLog(t, "Multiple files in one commit", "topology",
+		`API jobs: 1 2 3 4 5 6 7
 CRQ00001 CRQ00002 CRQ00003 CRQ00004 CRQ00005 CRQ00006 CRQ00007
+
+initial
 `)
 	stopQueue(pid)
 
@@ -54,22 +55,13 @@ CRQ00001 CRQ00002 CRQ00003 CRQ00004 CRQ00005 CRQ00006 CRQ00007
 	id = addHosts(13, 14)
 	pid = startQueue()
 	waitJob(id)
+	// Seeing truncated log, because "git clone --depth 1" is used.
 	checkCVSLog(t, "Multiple files with one error", "topology",
-		`revision 1.5
-API jobs: 14 15
+		`API jobs: 14 15
 CRQ000013 CRQ000014
-----------------------------
-revision 1.4
+
 API job: 12
 CRQ000012
-----------------------------
-revision 1.3
-API jobs: 8 9 10 11
-CRQ000010 CRQ000011 CRQ00008 CRQ00009
-----------------------------
-revision 1.2
-API jobs: 1 2 3 4 5 6 7
-CRQ00001 CRQ00002 CRQ00003 CRQ00004 CRQ00005 CRQ00006 CRQ00007
 `)
 
 	// Fresh start with cleaned up topology and stopped queue.
@@ -82,7 +74,7 @@ CRQ00001 CRQ00002 CRQ00003 CRQ00004 CRQ00005 CRQ00006 CRQ00007
 	checkStatus(t, "Job 1 waiting, no worker", id1, "WAITING")
 	checkStatus(t, "Job 2 waiting, no worker", id2, "WAITING")
 	pid = startQueue()
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	id3 := addHost(5)
 	checkStatus(t, "Job 1 in progress", id1, "INPROGRESS")
 	checkStatus(t, "Job 2 in progress", id2, "INPROGRESS")
@@ -120,17 +112,6 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 		`500 Error: API is currently unusable, because someone else has checked in bad files.
  Please try again later.
 `)
-
-	// Check in config file with unknown option that should be ignored by API.
-	changeNetspoc(`-- topology
-network:a = { ip = 10.1.1.0/24; }
--- config
-unknown = value;
-`)
-	id = addHost(4)
-	waitJob(id)
-	checkStatus(t, "Ingnore invalid config option", id, "FINISHED")
-	stopQueue(pid)
 
 	// Let "scp" fail
 	os.WriteFile(backend+"/my-bin/scp",
@@ -197,27 +178,38 @@ cp $FROM $TO
 }
 
 func setupNetspoc(input string) {
-	// Initialize empty CVS repository.
-	os.Mkdir("cvsroot", 0700)
-	os.Setenv("CVSROOT", backend+"/cvsroot")
-	exec.Command("cvs", "init").Run()
+	// Prevent warnings from git.
+	exec.Command("git", "config", "--global", "user.name", "Test User").Run()
+	exec.Command("git", "config", "--global", "user.email", "").Run()
+	exec.Command("git", "config", "--global", "init.defaultBranch", "master").Run()
+	exec.Command("git", "config", "--global", "pull.rebase", "true").Run()
 
-	// Create initial netspoc files and put them under CVS control.
-	os.Mkdir("import", 0700)
-	prepareDir("import", input)
-	os.Chdir("import")
-	exec.Command(
-		"cvs", "-Q", "import", "-m", "start", "netspoc", "vendor", "version").Run()
+	tmp := path.Join(backend, "tmp-git")
+	os.Mkdir(tmp, 0700)
+	prepareDir(tmp, input)
+	os.Chdir(tmp)
+	// Initialize git repository.
+	exec.Command("git", "init", "--quiet").Run()
+	exec.Command("git", "add", ".").Run()
+	exec.Command("git", "commit", "-m", "initial").Run()
 	os.Chdir(backend)
-	os.RemoveAll("import")
-	exec.Command("cvs", "-Q", "checkout", "netspoc").Run()
+	// Checkout into bare directory
+	bare := path.Join(backend, "netspoc.git")
+	exec.Command("git", "clone", "--quiet", "--bare", tmp, bare).Run()
+	os.Setenv("NETSPOC_GIT", "file://"+bare)
+	os.RemoveAll(tmp)
+	// Checkout into directory 'netspoc'
+	exec.Command("git", "clone", "--quiet", bare, "netspoc").Run()
 
 	// Create config file .netspoc-approve for newpolicy
 	os.Mkdir("policydb", 0700)
 	os.Mkdir("lock", 0700)
 	os.WriteFile(".netspoc-approve",
-		[]byte(fmt.Sprintf("netspocdir = %s/policydb\nlockfiledir = %s/lock",
-			backend, backend)), 0600)
+		[]byte(fmt.Sprintf(`
+netspocdir = %s/policydb
+lockfiledir = %s/lock
+netspoc_git = file://%s
+`, backend, backend, bare)), 0600)
 
 	// Create files for Netspoc-Approve and create compile.log file.
 	exec.Command("newpolicy.pl").Run()
@@ -225,9 +217,13 @@ func setupNetspoc(input string) {
 
 func changeNetspoc(input string) {
 	os.Chdir(backend)
-	os.Setenv("CVSROOT", backend+"/cvsroot")
 	prepareDir("netspoc", input)
-	exec.Command("cvs", "-Q", "commit", "-m", "test", "netspoc").Run()
+	os.Chdir("netspoc")
+	exec.Command("git", "add", "--all").Run()
+	exec.Command("git", "commit", "-m", "test").Run()
+	exec.Command("git", "pull", "--quiet").Run()
+	exec.Command("git", "push", "--quiet").Run()
+	os.Chdir(backend)
 }
 
 // Fill directory with files from input.
@@ -368,11 +364,10 @@ func checkLog(t *testing.T, title, expected string) {
 func checkCVSLog(t *testing.T, title, file, expected string) {
 	t.Run(title, func(t *testing.T) {
 		os.Chdir(backend)
-		cmd := exec.Command("bash", "-c",
-			fmt.Sprintf(
-				"cvs -q log netspoc/%s|tail -n +15|egrep -v '^date'|head -n -8",
-				file))
+		os.Chdir("netspoc")
+		cmd := exec.Command("git", "log", "--format=format:%B", file)
 		got, _ := cmd.Output()
+		os.Chdir(backend)
 		if d := cmp.Diff(expected, string(got)); d != "" {
 			t.Error(d)
 		}

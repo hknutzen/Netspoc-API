@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Checkout netspoc files from CVS, then call worker and netspoc.
+# Checkout netspoc files from Git, then call worker and netspoc.
 
 # Abort on each error
 set -e
@@ -25,11 +25,12 @@ abort-try-again () {
     abort "API is currently unusable," \
           "because someone else has checked in bad files.
  Please try again later."
-    }
+}
+[ -n $NETSPOC_GIT ] || abort "Environment variable NETSPOC_GIT must be set"
 info "Checking out files to $(readlink -f .)/netspoc"
 rm -rf netspoc
-cvs -Q checkout -P netspoc 2>err ||
-    abort-err "Error during initial cvs checkout:"
+git clone --quiet --depth 1 $NETSPOC_GIT netspoc 2>err ||
+    abort-err "Error during initial git clone:"
 
 # Copy unchanged netspoc files for further inspection in case of errors.
 rm -rf orig

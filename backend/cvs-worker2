@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Checkin changed files into CVS
+# Checkin changed files into Git
 
 # Abort on each error
 set -e
@@ -14,11 +14,6 @@ fi
 
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 info () { [ $verbose ] && echo "$*" >&2 || true; }
-check-conflict () {
-    if [ -n "$(cat err | egrep '^[^ ]+ update: conflicts found in')" ] ; then
-        abort-err "Merge conflict during cvs update:"
-    fi
-}
 
 # Add job IDs and CRQs to commit message.
 [ $# -gt 1 ] && S=s
@@ -33,39 +28,22 @@ CRQ=$(jq -r '.crq | values' $* | sort -u | paste -s -d' ')
 [ -n "$CRQ" ] && MSG="$MSG
 $CRQ"
 
-# "cvs add" just created files.
-# Redo, if directory was added.
+cd netspoc
+# Handle all changed, removed and added files.
+git add --all
+info "Committing changes"
+git commit -m"$MSG" >/dev/null 2>err ||
+    abort-err "Error during git commit:"
+# Try to push.
 while true; do
-    redo=''
-    cvs -q update netspoc >out 2>err ||
-        abort-err "Error during cvs update (before commit):"
-    check-conflict
-    # Check for lines like:
-    # "? netspoc/rule/3"
-    # Must enter "netspoc/" directory for "cvs add" to work.
-    for i in $(grep '^\? ' out|cut -c3-|cut -d/ -f2-) ; do
-        (cd netspoc; cvs -q add $i)
-        [ -d "netspoc/$i" ] && redo=1
-    done
-    [ -z $redo ] && break
-done
-
-
-# Try to check in.
-while true; do
-    info "Committing changes"
-    if cvs -q commit -m"$MSG" netspoc >/dev/null 2>err; then
+    git pull --quiet >/dev/null 2>err ||
+        abort-err "Error during git pull:"
+    if git push --quiet 2>err ; then
         info "Success"
         break
     fi
-    # Try again if Up-to-date check failed,
-    # i.e. both given messages are ignored.
-    # Don't check for exact name of "cvs" command in message,
-    # because cvs command may have been changed by $CVS_Server.
-    if [ -n "$(cat err | egrep -v '^[^ ]+ commit: Up-to-date check failed for|^[^ ]+ \[commit aborted\]: correct above errors first!$')" ] ; then
-        abort-err "Error during cvs commit:"
+    # Try again if up-to-date check failed,
+    if [ -n "$(cat err | grep -v '(fetch first)$')" ] ; then
+        abort-err "Error during git push:"
     fi
-    cvs -q update netspoc >/dev/null 2>err ||
-        abort-err "Error during cvs update (after change):"
-    check-conflict
 done

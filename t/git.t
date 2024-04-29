@@ -14,13 +14,6 @@ use Test_API qw(write_file prepare_dir setup_netspoc run);
 my $NETSPOC_DIR = "$ENV{HOME}/Netspoc";
 my $APPROVE_DIR = "$ENV{HOME}/Netspoc-Approve";
 $ENV{PATH} = "$NETSPOC_DIR/bin:$APPROVE_DIR/bin:$ENV{PATH}";
-{
-    my $lib = "$NETSPOC_DIR/lib:$APPROVE_DIR/lib";
-    if (my $old = $ENV{PERL5LIB}) {
-        $lib .= ":$old";
-    }
-    $ENV{PERL5LIB} = $lib;
-}
 
 my $API_DIR = "$ENV{HOME}/Netspoc-API";
 
@@ -39,14 +32,16 @@ sub test_worker {
 
     ref $job eq 'ARRAY' or $job = [$job];
     my $i = 1;
+    my @job_files;
     for my $j (@$job) {
         write_file($i, encode_json($j));
+        push @job_files, $i;
         $i++;
     }
 
     my $verbose = $named{verbose} ? "-v" : "";
-    # Checkout files from CVS, apply changes and run Netspoc.
-    my ($success, $stderr) = run("bin/cvs-worker1 $verbose [0-9]*");
+    # Checkout files from Git, apply changes and run Netspoc.
+    my ($success, $stderr) = run("bin/cvs-worker1 $verbose @job_files");
 
     if (not $success and not $stderr) {
         return ($success, $stderr);
@@ -55,11 +50,11 @@ sub test_worker {
 
     # Collect and simplify diff before check in.
     # Show diff even if Netspoc failed.
-    #diff -x CVS -ruN orig/netspoc/rule/S netspoc/rule/S
+    #diff -x .git -ruN orig/netspoc/rule/S netspoc/rule/S
     #--- orig/netspoc/rule/S 1970-01-01 01:00:00.000000000 +0100
     #+++ netspoc/rule/S      2022-08-19 14:46:29.026666333 +0200
     #@@ -0,0 +1,6 @@
-    my $diff = `diff -x CVS -ruN orig/netspoc netspoc/`;
+    my $diff = `diff -x .git -ruN orig/netspoc netspoc/`;
     $diff =~ s/^\+\+\+ (.*?)\t.*/$1/mg;
     $diff =~ s/^diff -x .*\n//mg;
     $diff =~ s/^--- .*\n//mg;
@@ -73,18 +68,20 @@ sub test_worker {
 
     # Simulate changes by other user.
     if (my $other = $named{other}) {
-        system 'cvs -Q checkout -d other netspoc';
+        system "git clone --quiet --depth 1 $ENV{NETSPOC_GIT} other";
         prepare_dir('other', $other);
-        system 'cvs -Q commit -m other other';
+        system 'cd other; git add --all; git commit -q -m other; git push -q';
     }
 
     # Try to check in changes.
     ($success, $stderr) = run("bin/cvs-worker2 $verbose [0-9]*");
-    $success or $diff = $stderr;
+    if (!$success) {
+        $stderr =~ s/( not apply )[0-9a-f]{7}[.]{3}/$1COMMIT.../g;
+        $diff = $stderr;
+    }
 
     if (my $file = $named{cvs_log}) {
-        my $log =
-            `cvs -q log netspoc/$file|tail -n +15|egrep -v '^date'|head -n -8`;
+        my $log = `cd netspoc; git log -1 --format=format:%B $file`;
         $diff .= "---\n$log";
     }
     return ($success, $diff);
@@ -321,7 +318,7 @@ END
 test_err($title, $in, $job, $out, other => $other);
 
 ############################################################
-$title = 'Add host, need cvs update';
+$title = 'Add host, need git pull';
 ############################################################
 
 $in = <<'END';
@@ -389,12 +386,16 @@ $job = {
 };
 
 $out = <<'END';
-Merge conflict during cvs update:
-rcsmerge: warning: conflicts during merge
-cvs update: conflicts found in netspoc/topology
+Error during git pull:
+error: could not apply COMMIT... API job: 1
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm <conflicted_files>", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+Could not apply COMMIT... API job: 1
 END
 
-test_err($title, $in, $job, $out, other => $other, verbose => 1);
+test_err($title, $in, $job, $out, other => $other);
 
 ############################################################
 $title = 'multi_job: add host and owner';
@@ -453,7 +454,6 @@ netspoc/topology
 + host:name_10_1_1_4 = { ip = 10.1.1.4; owner = a; }
 +}
 ---
-revision 1.2
 API job: 1
 CRQ00001234
 END
@@ -548,7 +548,6 @@ netspoc/topology
 + host:name_10_1_1_7 = { ip = 10.1.1.7; }
 +}
 ---
-revision 1.2
 API jobs: 4 3 2 1
 CRQ00001236 CRQ00001237
 END
