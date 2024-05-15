@@ -41,7 +41,7 @@ sub test_worker {
 
     my $verbose = $named{verbose} ? "-v" : "";
     # Checkout files from Git, apply changes and run Netspoc.
-    my ($success, $stderr) = run("bin/cvs-worker1 $verbose @job_files");
+    my ($success, $stderr) = run("bin/git-worker1 $verbose @job_files");
 
     if (not $success and not $stderr) {
         return ($success, $stderr);
@@ -74,13 +74,13 @@ sub test_worker {
     }
 
     # Try to check in changes.
-    ($success, $stderr) = run("bin/cvs-worker2 $verbose [0-9]*");
+    ($success, $stderr) = run("bin/git-worker2 $verbose [0-9]*");
     if (!$success) {
         $stderr =~ s/( not apply )[0-9a-f]{7}[.]{3}/$1COMMIT.../g;
         $diff = $stderr;
     }
 
-    if (my $file = $named{cvs_log}) {
+    if (my $file = $named{git_log}) {
         my $log = `cd netspoc; git log -1 --format=format:%B $file`;
         $diff .= "---\n$log";
     }
@@ -458,7 +458,7 @@ API job: 1
 CRQ00001234
 END
 
-test_run($title, $in, $job, $out, cvs_log => 'owner');
+test_run($title, $in, $job, $out, git_log => 'owner');
 
 ############################################################
 $title = 'Process multiple jobs at once, handle CRQs';
@@ -552,7 +552,7 @@ API jobs: 4 3 2 1
 CRQ00001236 CRQ00001237
 END
 
-test_run($title, $in, $job, $out, cvs_log => 'owner');
+test_run($title, $in, $job, $out, git_log => 'owner');
 
 ############################################################
 done_testing;

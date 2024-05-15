@@ -3,5 +3,5 @@
 # Called scripts are searched in directory of current script.
 path=$(dirname $(readlink -f $0))
 
-$path/cvs-worker1 "$@" &&
-$path/cvs-worker2 "$@"
+$path/git-worker1 "$@" &&
+$path/git-worker2 "$@"

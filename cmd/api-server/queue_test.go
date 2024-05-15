@@ -42,11 +42,11 @@ network:a = { ip = 10.1.1.0/24; } # Comment
 	id := addHosts(1, 7)
 	pid := startQueue()
 	waitJob(id)
-	checkCVSLog(t, "Multiple files in one commit", "topology",
+	checkGitLog(t, "Multiple files in one commit", "topology",
 		`API jobs: 1 2 3 4 5 6 7
 CRQ00001 CRQ00002 CRQ00003 CRQ00004 CRQ00005 CRQ00006 CRQ00007
 
-initial
+p1
 `)
 	stopQueue(pid)
 
@@ -56,7 +56,7 @@ initial
 	pid = startQueue()
 	waitJob(id)
 	// Seeing truncated log, because "git clone --depth 1" is used.
-	checkCVSLog(t, "Multiple files with one error", "topology",
+	checkGitLog(t, "Multiple files with one error", "topology",
 		`API jobs: 14 15
 CRQ000013 CRQ000014
 
@@ -307,7 +307,7 @@ func waitJob(id string) {
 func startQueue() int {
 	os.Setenv("HOME", backend)
 	os.Chdir(backend)
-	cmd := exec.Command("bin/process-queue", "localhost", "bin/cvs-worker")
+	cmd := exec.Command("bin/process-queue", "localhost", "bin/git-worker")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	ch := make(chan int)
 	go func() {
@@ -361,7 +361,7 @@ func checkLog(t *testing.T, title, expected string) {
 	})
 }
 
-func checkCVSLog(t *testing.T, title, file, expected string) {
+func checkGitLog(t *testing.T, title, file, expected string) {
 	t.Run(title, func(t *testing.T) {
 		os.Chdir(backend)
 		os.Chdir("netspoc")
