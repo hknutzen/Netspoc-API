@@ -7,10 +7,11 @@ Wants=network-online.target
 Restart=always
 Type=simple
 User=netspoc-api
-Environment="FRONTEND=${USER}@frontend-server"
-Environment="RUNNER=${HOME}/bin/process-queue"
-Environment="WORKER=${HOME}/bin/cvs-worker"
 WorkingDirectory=~
+Environment="FRONTEND=${USER}@frontend.server.example"
+Environment="RUNNER=${HOME}/bin/process-queue"
+Environment="WORKER=${HOME}/bin/git-worker"
+Environment="NETSPOC_GIT=git@localhost:netspoc.git"
 
 # Start service with initial login to load environment variables
 ExecStart=/bin/bash -l -c "${RUNNER} ${FRONTEND} ${WORKER}"
