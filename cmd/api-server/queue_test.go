@@ -202,17 +202,16 @@ func setupNetspoc(input string) {
 	exec.Command("git", "clone", "--quiet", bare, "netspoc").Run()
 
 	// Create config file .netspoc-approve for newpolicy
-	os.Mkdir("policydb", 0700)
+	os.Mkdir("policies", 0700)
 	os.Mkdir("lock", 0700)
 	os.WriteFile(".netspoc-approve",
 		[]byte(fmt.Sprintf(`
-netspocdir = %s/policydb
-lockfiledir = %s/lock
+basedir = %s
 netspoc_git = file://%s
-`, backend, backend, bare)), 0600)
+`, backend, bare)), 0600)
 
 	// Create files for Netspoc-Approve and create compile.log file.
-	exec.Command("newpolicy.pl").Run()
+	exec.Command("newpolicy.sh").Run()
 }
 
 func changeNetspoc(input string) {
