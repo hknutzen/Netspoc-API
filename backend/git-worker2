@@ -35,15 +35,14 @@ info "Committing changes"
 git commit -m"$MSG" >/dev/null 2>err ||
     abort-err "Error during git commit:"
 # Try to push.
+# Try again after pull, if up-to-date check fails.
 while true; do
-    git pull --quiet >/dev/null 2>err ||
-        abort-err "Error during git pull:"
     if git push --quiet 2>err ; then
         info "Success"
         break
     fi
-    # Try again if up-to-date check failed,
-    if [ -n "$(cat err | grep -v '(fetch first)$')" ] ; then
+    grep -q '(fetch first)$' err ||
         abort-err "Error during git push:"
-    fi
+    git pull --quiet >/dev/null 2>err ||
+        abort-err "Error during git pull:"
 done
