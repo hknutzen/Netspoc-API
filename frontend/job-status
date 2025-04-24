@@ -77,10 +77,9 @@ elsif (-f $fin_job) {
     }
     else {
         $message = read_file($err_file);
-#        unlink $err_file, $fin_job;
         if ($message) {
             if ($message =~ /try again/i) {
-                # Leads to HTTP status 500 in api.psgi, which may be retried.
+                # Leads to HTTP status 500 in api-server, which may be retried.
                 die $message;
             }
             $status = 'ERROR';
