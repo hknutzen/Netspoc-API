@@ -11,8 +11,8 @@ usage () {
 # Used by ssh and scp.
 REMOTE=$1
 
-# Program that processes jobs, one by one.
-# Path to job is given as argument, errors are written to STDERR.
+# Program that processes one or more jobs.
+# Path to jobs are given as arguments, errors are written to STDERR.
 WORKER=$2
 
 # Wait that many seconds before retry after error.
