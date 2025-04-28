@@ -112,6 +112,7 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 		`500 Error: API is currently unusable, because someone else has checked in bad files.
  Please try again later.
 `)
+	stopQueue(pid)
 
 	// Let "scp" fail
 	os.WriteFile(backend+"/my-bin/scp",
