@@ -6,7 +6,7 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.6
 	github.com/google/go-cmp v0.6.0
 	github.com/hknutzen/testtxt v0.0.0-20240408182449-0168fe18ebfb
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.35.0
 )
 
 require (
