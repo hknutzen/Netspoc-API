@@ -122,7 +122,7 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 		`), 0700)
 	id = addHost(4)
 	pid = startQueue()
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(600 * time.Millisecond)
 	checkLog(t, "scp failed", "scp: can't connect\n")
 	stopQueue(pid)
 
@@ -133,7 +133,7 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 		exit 1
 		`), 0700)
 	pid = startQueue()
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	stopQueue(pid)
 	checkLog(t, "ssh failed", "ssh: can't connect\n")
 }
