@@ -1,15 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
 
 	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/crypto/bcrypt"
@@ -29,8 +26,7 @@ var conf config
 
 func main() {
 	// Start in home directory to find
-	// - config file in ./config
-	// - scripts in bin/
+	// config file in ./config
 	os.Chdir(os.Getenv("HOME"))
 	if err := loadConfig(); err != nil {
 		log.Fatal(err)
@@ -53,7 +49,7 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	var job jsonArgs
 	if err := json.Unmarshal(body, &job); err != nil {
-		badRequest(w, err.Error())
+		badRequest(w, "Invalid JSON: "+err.Error())
 		return
 	}
 	if authenticate(w, job) {
@@ -68,40 +64,10 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type jsonMap map[string]interface{}
-
-func addJob(w http.ResponseWriter, body []byte) {
-	var job jsonMap
-	json.Unmarshal(body, &job)
-	// Delete password from request, must not be stored in queue.
-	delete(job, "pass")
-	body, _ = json.Marshal(job)
-	cmd := exec.Command("bin/add-job")
-	cmd.Stdin = bytes.NewBuffer(body)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		internalErr(w, string(out)+" "+err.Error())
-	} else {
-		enc := json.NewEncoder(w)
-		enc.Encode(jsonMap{"id": string(out)})
-	}
-}
-
 type jsonArgs struct {
 	User string
 	Pass string
 	Id   string
-}
-
-func jobStatus(w http.ResponseWriter, job jsonArgs) {
-	cmd := exec.Command("bin/job-status", job.Id, job.User)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		msg, _ := strings.CutSuffix(string(out), "\n")
-		internalErr(w, msg)
-	} else {
-		w.Write(out)
-	}
 }
 
 func authenticate(w http.ResponseWriter, job jsonArgs) bool {

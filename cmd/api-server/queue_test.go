@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +51,7 @@ p1
 
 	addHosts(8, 12)
 	addHost(12) // Duplicate IP
+	time.Sleep(10 * time.Millisecond)
 	id = addHosts(13, 14)
 	pid = startQueue()
 	waitJob(id)
@@ -64,24 +64,30 @@ API job: 12
 CRQ000012
 `)
 
+	id = addHostForUser(15, "other")
+	waitJob(id)
+	checkStatus(t, "Can't access other users job", id, "DENIED")
+
+	checkStatus(t, "Unknown job 99", "99", "UNKNOWN")
+
 	// Fresh start with cleaned up topology and stopped queue.
 	stopQueue(pid)
 	changeNetspoc(`-- topology
 		network:a = { ip = 10.1.1.0/24; } # Comment
 		`)
-	id1 := addHostDirect(4)
+	id1 := addHost(4)
+	time.Sleep(10 * time.Millisecond)
 	id2 := addHost(4) // Add identical job; will fail.
 	checkStatus(t, "Job 1 waiting, no worker", id1, "WAITING")
 	checkStatus(t, "Job 2 waiting, no worker", id2, "WAITING")
 	pid = startQueue()
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(600 * time.Millisecond)
 	id3 := addHost(5)
 	checkStatus(t, "Job 1 in progress", id1, "INPROGRESS")
 	checkStatus(t, "Job 2 in progress", id2, "INPROGRESS")
 	checkStatus(t, "New job 3 waiting", id3, "WAITING")
-	checkStatus(t, "Unknown job 99", "99", "UNKNOWN")
 	waitJob(id3)
-	checkStatus(t, "Can't access job 1 from WWW", id1, "DENIED")
+	checkStatus(t, "Job 1 finished", id1, "FINISHED")
 	checkStatus(t, "Job 2 with errors", id2,
 		`ERROR
 Can't modify Netspoc files:
@@ -133,7 +139,7 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 		exit 1
 		`), 0700)
 	pid = startQueue()
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(400 * time.Millisecond)
 	stopQueue(pid)
 	checkLog(t, "ssh failed", "ssh: can't connect\n")
 }
@@ -266,13 +272,20 @@ func setupWWW() {
 	cmd := exec.Command("bin/salted-hash")
 	cmd.Stdin = strings.NewReader("test")
 	out, err := cmd.Output()
-	out = bytes.TrimSpace(out)
+	hash := string(out)
+	hash = strings.TrimSpace(hash)
 	if err != nil {
 		log.Fatal(err)
 	}
 	os.WriteFile("config",
-		[]byte(fmt.Sprintf(`{"user": {"test": {"hash": "%s"}}}`,
-			string(out))), 0600)
+		[]byte(fmt.Sprintf(`
+{
+ "user": {
+  "test": {"hash": "%s"},
+  "other": {"hash": "%s"}
+ }
+}`,
+			hash, hash)), 0600)
 	if err = loadConfig(); err != nil {
 		log.Fatal(err)
 	}
@@ -299,7 +312,7 @@ func waitJob(id string) {
 		if _, err := os.Stat(fName); err == nil {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -375,32 +388,25 @@ func checkGitLog(t *testing.T, title, file, expected string) {
 }
 
 func addHost(i int) string {
-	_, bytes := wwwCall("/add-job", getHostJob(i, "test"))
-	var s struct {
-		ID string
-	}
-	json.Unmarshal(bytes, &s)
-	return s.ID
+	return addHostForUser(i, "test")
 }
 
 func addHosts(start, end int) string {
 	id := ""
 	for i := start; i <= end; i++ {
 		id = addHost(i)
+		time.Sleep(10 * time.Millisecond)
 	}
 	return id
 }
 
-func addHostDirect(i int) string {
-	os.Setenv("HOME", frontend)
-	os.Chdir(frontend)
-	cmd := exec.Command("bin/add-job")
-	cmd.Stdin = strings.NewReader(getHostJob(i, ""))
-	out, err := cmd.Output()
-	if err != nil {
-		panic(err)
+func addHostForUser(i int, user string) string {
+	_, bytes := wwwCall("/add-job", getHostJob(i, user))
+	var s struct {
+		ID string
 	}
-	return string(out)
+	json.Unmarshal(bytes, &s)
+	return s.ID
 }
 
 func getHostJob(i int, user string) string {
