@@ -15,10 +15,6 @@ Netspoc configuration.
   * [multi_job](#multi_job)
 * [Deprecated methods](#deprecated-methods)
   * [create_host](#create_host)
-  * [modify_host](#modify_host)
-  * [create_owner](#create_owner)
-  * [add_to_group](#add_to_group)
-
 
 ### Asynchronous processing
 
@@ -297,32 +293,3 @@ Parameters:
 
 If name of network is ```[auto]```, the network will be searched by IP
 address and mask.
-
-#### modify_host
-
-Modify existing host.
-
-Parameters:
-
-- name: Name of host.
-- owner: Change or add owner of this host.
-
-#### create_owner
-
-Add owner to file ```netspoc/owner```.
-
-Parameters:
-
-- name: Name of owner.
-- admins: Array of admins.
-- watchers: Array of watchers
-- ok_if_exists: If this attribute is set and this owner already exists, this job is silently ignored, but counts as succeeded in multi_job.
-
-#### add_to_group
-
-Add object to existing group.
-
-Parameters:
-
-- name: Name of group.
-- object: [Object set in Netspoc syntax](http://hknutzen.github.io/Netspoc/syntax.html#set-of-objects). Multiple values allowed.
