@@ -174,11 +174,10 @@ network:a = { ip = 10.1.0.0/21; owner = DA_abc;
 END
 
 $job = {
-    method => 'create_host',
+    method => 'add',
     params => {
-        network => 'a',
-        name    => 'name_10_1_1_3',
-        ip      => '10.1.1.3',
+        path => 'network:a,host:name_10_1_1_3',
+        value => { ip => '10.1.1.3' }
     }
 };
 
@@ -223,12 +222,10 @@ network:a = {
 END
 
 $job = {
-    method => 'create_host',
+    method => 'add',
     params => {
-        network => 'a',
-        name    => 'name_10_1_1_3',
-        ip      => '10.1.1.3',
-        owner   => 'DA_abc',
+        path => 'network:a,host:name_10_1_1_3',
+        value => { ip => '10.1.1.3', owner   => 'DA_abc' }
     }
 };
 
@@ -255,37 +252,37 @@ END
 test_err($title, $in, $job, $out, verbose => 1);
 
 ############################################################
-$title = 'Add host, Netspoc failure';
+$title = 'Change host IP, Netspoc failure';
 ############################################################
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.1.0.0/21; host:name_10_1_1_4 = { ip = 10.1.1.4; } }
+network:a = {
+ ip = 10.1.0.0/21;
+ host:name_10_1_1_4 = { ip = 10.1.1.4; }
+}
 END
 
 $job = {
-    method => 'create_host',
+    method => 'set',
     params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
+        path => 'network:a,host:name_10_1_1_4,ip',
+        value => '10.1.99.4'
     }
 };
 
 $out = <<'END';
 Netspoc shows errors:
-Error: Duplicate definition of host:name_10_1_1_4 in netspoc/topology
+Error: IP of host:name_10_1_1_4 doesn't match address of network:a
 Aborted with 1 error(s)
 ---
 netspoc/topology
-@@ -1 +1,5 @@
--network:a = { ip = 10.1.0.0/21; host:name_10_1_1_4 = { ip = 10.1.1.4; } }
-+network:a = {
-+ ip = 10.1.0.0/21;
-+ host:name_10_1_1_4 = { ip = 10.1.1.4; }
-+ host:name_10_1_1_4 = { ip = 10.1.1.4; }
-+}
+@@ -1,4 +1,4 @@
+ network:a = {
+  ip = 10.1.0.0/21;
+- host:name_10_1_1_4 = { ip = 10.1.1.4; }
++ host:name_10_1_1_4 = { ip = 10.1.99.4; }
+ }
 END
 
 test_err($title, $in, $job, $out, other => $other);
@@ -296,22 +293,20 @@ $title = 'Add host, API failure';
 
 $in = <<'END';
 -- topology
-network:a = { ip = 10.2.0.0/21; }
+network:a = { ip = 10.1.0.0/21; }
 END
 
 $job = {
-    method => 'create_host',
+    method => 'add',
     params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
+        path => 'network:b,host:name_10_1_1_3',
+        value => { ip => '10.1.1.3' }
     }
 };
 
 $out = <<'END';
 Can't modify Netspoc files:
-Error: Can't find network with 'ip = 10.1.0.0/21'
+Error: Can't modify unknown toplevel object 'network:b'
 ---
 END
 
@@ -335,12 +330,10 @@ network:b = { ip = 10.8.0.0/21; }
 END
 
 $job = {
-    method => 'create_host',
+    method => 'add',
     params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
+        path => 'network:a,host:name_10_1_1_4',
+        value => { ip => '10.1.1.4' }
     }
 };
 
@@ -376,12 +369,10 @@ network:a = { ip = 10.1.0.0/21;
 END
 
 $job = {
-    method => 'create_host',
+    method => 'add',
     params => {
-        network => '[auto]',
-        name    => 'name_10_1_1_4',
-        ip      => '10.1.1.4',
-        mask    => '255.255.248.0',
+        path => 'network:a,host:name_10_1_1_4',
+        value => { ip => '10.1.1.4' }
     }
 };
 
@@ -414,23 +405,23 @@ $job = {
     params => {
         jobs => [
             {
-                method => 'create_owner',
+                method => 'add',
                 params => {
-                    name     => 'a',
-                    admins   => [ 'a@example.com', 'b@example.com' ],
-                    watchers => [ 'c@example.com', 'd@example.com' ],
+                    path => 'owner:a',
+                    value => {
+                        admins   => [ 'a@example.com', 'b@example.com' ],
+                        watchers => [ 'c@example.com', 'd@example.com' ]
+                    }
                 }
             },
             {
-                method => 'create_host',
+                method => 'add',
                 params => {
-                    network => 'n1',
-                    name    => 'name_10_1_1_4',
-                    ip      => '10.1.1.4',
-                    owner   => 'a',
+                    path => 'network:n1,host:name_10_1_1_4',
+                    value => { ip => '10.1.1.4', owner   => 'a'}
                 }
             }
-        ],
+        ]
     }
 };
 
@@ -474,14 +465,12 @@ END
 $job =
     [
      {
-         method => 'create_host',
+         method => 'add',
          crq => 'CRQ00001236',
          params => {
-             network => 'n1',
-             name    => 'name_10_1_1_6',
-             ip      => '10.1.1.6',
-         },
-
+             path => 'network:n1,host:name_10_1_1_6',
+             value => { ip => '10.1.1.6' }
+         }
      },
      {
          method => 'multi_job',
@@ -490,43 +479,39 @@ $job =
              jobs =>
                  [
                   {
-                      method => 'create_owner',
+                      method => 'add',
                       params => {
-                          name     => 'a',
-                          admins   => [ 'a@example.com' ],
-                      },
+                          path => 'owner:a',
+                          value => {
+                              admins   => [ 'a@example.com' ]
+                          }
+                      }
                   },
                   {
-                      method => 'create_host',
+                      method => 'add',
                       params => {
-                          network => 'n1',
-                          name    => 'name_10_1_1_4',
-                          ip      => '10.1.1.4',
-                          owner   => 'a',
-                      },
-                  },
+                          path => 'network:n1,host:name_10_1_1_4',
+                          value => { ip => '10.1.1.4', owner   => 'a'}
+                      }
+                  }
                  ],
          }
      },
      {
-         method => 'create_host',
+         method => 'add',
          # Without CRQ
          params => {
-             network => 'n1',
-             name    => 'name_10_1_1_5',
-             ip      => '10.1.1.5',
-         },
-
+             path => 'network:n1,host:name_10_1_1_5',
+             value => { ip => '10.1.1.5' }
+         }
      },
      {
-         method => 'create_host',
+         method => 'add',
          params => {
-             network => 'n1',
-             name    => 'name_10_1_1_7',
-             ip      => '10.1.1.7',
+             path => 'network:n1,host:name_10_1_1_7',
+             value => { ip => '10.1.1.7' }
          },
-         crq => 'CRQ00001237',
-
+         crq => 'CRQ00001237'
      }
     ];
 
