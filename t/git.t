@@ -9,11 +9,9 @@ use Test::Differences;
 use lib 't';
 use Test_API qw(write_file prepare_dir setup_netspoc run);
 
-# Set up PATH and PERL5LIB, such that files and libraries are searched
-# in $HOME/Netspoc, $HOME/Netspoc-Approve
+# Set up PATH, such that files are searched $HOME/Netspoc
 my $NETSPOC_DIR = "$ENV{HOME}/Netspoc";
-my $APPROVE_DIR = "$ENV{HOME}/Netspoc-Approve";
-$ENV{PATH} = "$NETSPOC_DIR/bin:$APPROVE_DIR/bin:$ENV{PATH}";
+$ENV{PATH} = "$NETSPOC_DIR/bin:$ENV{PATH}";
 
 my $API_DIR = "$ENV{HOME}/Netspoc-API";
 

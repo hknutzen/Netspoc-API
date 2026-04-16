@@ -74,18 +74,6 @@ sub setup_netspoc {
     $ENV{NETSPOC_GIT} = "file://$bare";
     # Checkout into directory 'netspoc'
     system "git clone --quiet $bare netspoc";
-
-    # Create config file .netspoc-approve for newpolicy
-    mkdir('policydb');
-    mkdir('lock');
-    write_file('.netspoc-approve', <<"END");
-netspocdir = $dir/policydb
-lockfiledir = $dir/lock
-netspoc_git = file://$bare
-END
-
-    # Create files for Netspoc-Approve and create compile.log file.
-    system 'newpolicy.pl >/dev/null 2>&1';
 }
 
 sub run {
