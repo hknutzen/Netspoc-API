@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hknutzen/testtxt"
 )
 
 var apiDir, frontend, backend string
@@ -35,7 +35,7 @@ func TestQueue(t *testing.T) {
 	setupFrontend(t)
 	setupWWW()
 	setupBackend(t)
-	setupNetspoc(`-- topology
+	setupNetspoc(t, `-- topology
 network:a = { ip = 10.1.1.0/24; } # Comment
 `)
 	id := addHosts(1, 7)
@@ -72,7 +72,7 @@ CRQ000012
 
 	// Fresh start with cleaned up topology and stopped queue.
 	stopQueue(pid)
-	changeNetspoc(`-- topology
+	changeNetspoc(t, `-- topology
 		network:a = { ip = 10.1.1.0/24; } # Comment
 		`)
 	id1 := addHost(4)
@@ -97,7 +97,7 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 	checkLog(t, "Empty log", "")
 
 	// Check in bad content, so Netspoc stops with errors.
-	changeNetspoc(`-- topology
+	changeNetspoc(t, `-- topology
 		network:a = { ip = 10.1.1.0/24; }
 		network:a = { ip = 10.1.1.0/24; }
 		`)
@@ -109,7 +109,7 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 `)
 
 	// Check in bad content, which API can't read.
-	changeNetspoc(`-- topology
+	changeNetspoc(t, `-- topology
 		network:a = { ip = 10.1.1.0/24; }  BAD SYNTAX
 		`)
 	id = addHost(4)
@@ -184,7 +184,7 @@ cp $FROM $TO
 	os.Symlink(apiDir+"/backend", "bin")
 }
 
-func setupNetspoc(input string) {
+func setupNetspoc(t *testing.T, input string) {
 	// Prevent warnings from git.
 	exec.Command("git", "config", "--global", "user.name", "Test User").Run()
 	exec.Command("git", "config", "--global", "user.email", "").Run()
@@ -193,7 +193,7 @@ func setupNetspoc(input string) {
 
 	tmp := path.Join(backend, "tmp-git")
 	os.Mkdir(tmp, 0700)
-	prepareDir(tmp, input)
+	testtxt.PrepareFileOrDir(t, tmp, input)
 	os.Chdir(tmp)
 	// Initialize git repository.
 	exec.Command("git", "init", "--quiet").Run()
@@ -221,47 +221,15 @@ netspoc_git = file://%s
 	exec.Command("newpolicy.sh").Run()
 }
 
-func changeNetspoc(input string) {
+func changeNetspoc(t *testing.T, input string) {
 	os.Chdir(backend)
-	prepareDir("netspoc", input)
+	testtxt.PrepareFileOrDir(t, "netspoc", input)
 	os.Chdir("netspoc")
 	exec.Command("git", "add", "--all").Run()
 	exec.Command("git", "commit", "-m", "test").Run()
 	exec.Command("git", "pull", "--quiet").Run()
 	exec.Command("git", "push", "--quiet").Run()
 	os.Chdir(backend)
-}
-
-// Fill directory with files from input.
-// Parts of input are marked by single lines of dashes
-// followed by a filename.
-func prepareDir(dir, input string) {
-	re := regexp.MustCompile(`(?ms)^-+[ ]*\S+[ ]*\n`)
-	il := re.FindAllStringIndex(input, -1)
-	if il == nil {
-		log.Fatal("Missing filename before first input block")
-	}
-	if il[0][0] != 0 {
-		log.Fatal("Missing file marker in first line")
-	}
-	for i, p := range il {
-		marker := input[p[0] : p[1]-1] // without trailing "\n"
-		pName := strings.Trim(marker, "- ")
-		file := path.Join(dir, pName)
-		start := p[1]
-		end := len(input)
-		if i+1 < len(il) {
-			end = il[i+1][0]
-		}
-		data := input[start:end]
-		dir := path.Dir(file)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			log.Fatalf("Can't create directory for '%s': %v", file, err)
-		}
-		if err := os.WriteFile(file, []byte(data), 0644); err != nil {
-			log.Fatal(err)
-		}
-	}
 }
 
 var server *httptest.Server
