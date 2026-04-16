@@ -39,7 +39,7 @@
 =RESPONSE={"status": "FINISHED"}
 =STATUS=200
 
-=TITLE=Finished, missinng result
+=TITLE=Finished, missing result
 =INPUT=
 [[config]]
 --finished/42
