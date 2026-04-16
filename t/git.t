@@ -283,7 +283,7 @@ netspoc/topology
  }
 END
 
-test_err($title, $in, $job, $out, other => $other);
+test_err($title, $in, $job, $out);
 
 ############################################################
 $title = 'Add host, API failure';
@@ -308,7 +308,7 @@ Error: Can't modify unknown toplevel object 'network:b'
 ---
 END
 
-test_err($title, $in, $job, $out, other => $other);
+test_err($title, $in, $job, $out);
 
 ############################################################
 $title = 'Add host, need git pull';
