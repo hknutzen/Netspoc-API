@@ -5,7 +5,7 @@ go 1.24.1
 require (
 	github.com/go-ldap/ldap/v3 v3.4.6
 	github.com/google/go-cmp v0.6.0
-	github.com/hknutzen/testtxt v0.0.0-20240408182449-0168fe18ebfb
+	github.com/hknutzen/testtxt v0.0.0-20260107164122-ab26dfe74ef5
 	golang.org/x/crypto v0.35.0
 )
 
