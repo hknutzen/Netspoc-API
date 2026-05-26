@@ -5,12 +5,13 @@
 # Abort on each error
 set -e
 
-# Check parameter
-verbose=''
-if getopts 'v' flag; then
-    shift
-    verbose=1
-fi
+# Check parameters
+while getopts 'vw' flag; do
+    case $flag in
+        v) verbose=1;;
+    esac
+done
+shift $((OPTIND-1))
 
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
 info () { [ $verbose ] && echo "$*" >&2 || true; }

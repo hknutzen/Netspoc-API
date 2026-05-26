@@ -150,7 +150,7 @@ process () {
         # Store errors in $STATUS.
         # $STATUS is emtpy on success.
         STATUS=tmp/worker
-        $WORKER $* 2>$STATUS ||
+        $WORKER -w $* 2>$STATUS ||
             grep -q '[^[:space:]]' $STATUS ||
             echo "Unknown error" > $STATUS
 

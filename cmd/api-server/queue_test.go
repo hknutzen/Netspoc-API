@@ -102,22 +102,27 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 		network:a = { ip = 10.1.1.0/24; }
 		`)
 	id = addHost(4)
+	time.Sleep(1000 * time.Millisecond)
+	checkStatus(t, "Job waiting on semantic error", id, "INPROGRESS")
+	time.Sleep(600 * time.Millisecond)
+	checkStatus(t, "Job still waiting on semantic error", id, "INPROGRESS")
+	changeNetspoc(t, `-- topology
+		network:a = { ip = 10.1.1.0/24; }
+		`)
 	waitJob(id)
-	checkStatus(t, "API fails on bad content in repository", id,
-		`500 Error: API is currently unusable, because someone else has checked in bad files.
- Please try again later.
-`)
+	checkStatus(t, "Waiting job has finished", id, "FINISHED")
 
 	// Check in bad content, which API can't read.
 	changeNetspoc(t, `-- topology
 		network:a = { ip = 10.1.1.0/24; }  BAD SYNTAX
 		`)
-	id = addHost(4)
-	waitJob(id)
-	checkStatus(t, "API fails on illegal syntax in repository", id,
-		`500 Error: API is currently unusable, because someone else has checked in bad files.
- Please try again later.
-`)
+	id2 = addHost(4)
+	time.Sleep(1100 * time.Millisecond)
+	checkStatus(t, "Job waiting on syntax error", id2, "INPROGRESS")
+	changeNetspoc(t, `-- topology
+		network:a = { ip = 10.1.1.0/24; }
+		`)
+	waitJob(id2)
 	stopQueue(pid)
 
 	// Let "scp" fail
@@ -139,7 +144,7 @@ Error: Can't add duplicate definition of 'host:name_10_1_1_4'
 		exit 1
 		`), 0700)
 	pid = startQueue()
-	time.Sleep(400 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 	stopQueue(pid)
 	checkLog(t, "ssh failed", "ssh: can't connect\n")
 }

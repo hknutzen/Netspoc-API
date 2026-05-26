@@ -10,12 +10,14 @@ set -e
 # commands in the pipeline exit successfully.
 set -o pipefail
 
-# Check parameter
-verbose=''
-if getopts 'v' flag; then
-    shift
-    verbose=1
-fi
+# Check parameters
+while getopts 'vw' flag; do
+    case $flag in
+        v) verbose=1;;
+        w) wait_git=1;;
+    esac
+done
+shift $((OPTIND-1))
 
 abort () { echo "Error: $*" >&2; exit 1; }
 abort-err () { echo "$*" >&2; cat err >&2; exit 1; }
@@ -26,59 +28,80 @@ abort-try-again () {
           "because someone else has checked in bad files.
  Please try again later."
 }
+wait-git-changed () {
+    [ $wait_git ] || abort-try-again
+    (cd netspoc
+     rev1=$(git rev-parse HEAD)
+     origin=$(git rev-parse --abbrev-ref @{u} | sed 's/\// /g')
+     while true; do
+         sleep 1
+         rev2=$(git ls-remote $origin | cut -f1)
+         [ $rev1 != $rev2 ] && break
+     done
+     )
+}
+
 [ -n $NETSPOC_GIT ] || abort "Environment variable NETSPOC_GIT must be set"
-info "Checking out files to $(readlink -f .)/netspoc"
-rm -rf netspoc
-git clone --quiet --depth 1 $NETSPOC_GIT netspoc 2>err ||
-    abort-err "Error during initial git clone:"
 
-# Copy unchanged netspoc files for further inspection in case of errors.
-rm -rf orig
-mkdir orig
-cp -r netspoc orig/netspoc
+# Run repeatedly if unchanged files can't be compiled.
+while true; do
+    info "Checking out files to $(readlink -f .)/netspoc"
+    rm -rf netspoc
+    git clone --quiet --depth 1 $NETSPOC_GIT netspoc 2>err ||
+        abort-err "Error during initial git clone:"
 
-info "Applying changes and compiling files"
-for job in $*; do
-    if ! modify-netspoc-api -q netspoc $job  2>err; then
-        case $(cat err) in
-            "Error: While reading netspoc files:"*) abort-try-again;;
-            *)
-                abort-err "Can't modify Netspoc files:"
-        esac
+    # Copy unchanged netspoc files for further inspection in case of errors.
+    rm -rf orig
+    mkdir orig
+    cp -r netspoc orig/netspoc
+
+    info "Applying changes and compiling files"
+    for job in $*; do
+        if ! modify-netspoc-api -q netspoc $job  2>err; then
+            case $(cat err) in
+                "Error: While reading netspoc files:"*)
+                    wait-git-changed
+                    continue
+                    ;;
+                *)
+                    abort-err "Can't modify Netspoc files:"
+            esac
+        fi
+    done
+    if netspoc -q netspoc 2>err; then
+        # Success.
+        if [ ! -s err ] ; then
+            exit 0
+        fi
+        # Warnings occurred.
+        FAILED=''
+    else
+        FAILED=1
     fi
+
+    info "Checking original files for errors or warnings"
+    if ! (cd orig; netspoc -q netspoc 2>../err.orig; ) then
+
+       # Current state has files that won't compile.
+       # Wait for updates and try again.
+       wait-git-changed
+       continue
+    fi
+
+    # Original files are ok, but changed files failed to compile.
+    if [ -n "$FAILED" ] ; then
+        abort-err "Netspoc shows errors:"
+    fi
+
+    # Collect warnings. It is ok if no warnings were found.
+    grep '^Warning:' err.orig >warn || true
+
+    # Warning occurred when compiling changed files.
+    # Compare with warnings from compiling original files.
+    if ! grep '^Warning:' err | cmp -s warn - ; then
+        abort-err "Netspoc shows warnings:"
+    fi
+
+    # No additional warnings occurred.
+    exit 0
 done
-if netspoc -q netspoc 2>err; then
-    # Success.
-    if [ ! -s err ] ; then
-        exit 0
-    fi
-    # Warnings occurred.
-    FAILED=''
-else
-    FAILED=1
-fi
-
-info "Checking original files for errors or warnings"
-if ! (cd orig; netspoc -q netspoc 2>../err.orig; ) then
-
-    # Current state has files that won't compile.
-    abort-try-again
-
-fi
-
-# Original files are ok, but changed files failed to compile.
-if [ -n "$FAILED" ] ; then
-    abort-err "Netspoc shows errors:"
-fi
-
-# Collect warnings. It is ok if no warnings were found.
-grep '^Warning:' err.orig >warn || true
-
-# Warning occurred when compiling changed files.
-# Compare with warnings from compiling original files.
-if ! grep '^Warning:' err | cmp -s warn - ; then
-    abort-err "Netspoc shows warnings:"
-fi
-
-# No additional warnings occurred.
-exit 0
