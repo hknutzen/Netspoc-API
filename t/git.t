@@ -538,4 +538,69 @@ END
 test_run($title, $in, $job, $out, git_log => 'owner');
 
 ############################################################
+$title = 'First of multiple jobs writes bad syntax';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10.1.1.0/24; }
+END
+
+$job =
+    [
+     {
+         method => 'set',
+         params => {
+             path => 'network:n1,ip',
+             value => '10=1=1=0/24'
+         }
+     },
+     {
+         method => 'set',
+         params => {
+             path => 'network:n1,ip',
+             value => '10.1.1.0/24'
+         }
+     }
+    ];
+
+$out = <<'END';
+Can't modify Netspoc files:
+Error: While reading netspoc files: Expected ';' at line 1 of netspoc/topology, near "10--HERE-->=1"
+---
+netspoc/topology
+@@ -1 +1 @@
+-network:n1 = { ip = 10.1.1.0/24; }
++network:n1 = { ip = 10=1=1=0/24; }
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
+$title = 'Netspoc data has bad syntax';
+############################################################
+
+$in = <<'END';
+-- topology
+network:n1 = { ip = 10=1=1=0/24; }
+END
+
+$job =
+{
+    method => 'set',
+    params => {
+        path => 'network:n1,ip',
+        value => '10.1.1.0/24'
+    }
+};
+
+$out = <<'END';
+Error: API is currently unusable, because someone else has checked in bad files.
+ Please try again later.
+---
+END
+
+test_err($title, $in, $job, $out);
+
+############################################################
 done_testing;

@@ -56,17 +56,20 @@ while true; do
     cp -r netspoc orig/netspoc
 
     info "Applying changes and compiling files"
+    FIRST_JOB=1
     for job in $*; do
         if ! modify-netspoc-api -q netspoc $job  2>err; then
-            case $(cat err) in
-                "Error: While reading netspoc files:"*)
-                    wait-git-changed
-                    continue
-                    ;;
-                *)
-                    abort-err "Can't modify Netspoc files:"
-            esac
+            if [ -n "$FIRST_JOB" ] ; then
+                case $(cat err) in
+                    "Error: While reading netspoc files:"*)
+                        wait-git-changed
+                        continue 2	# Continue outer loop
+                        ;;
+                esac
+            fi
+            abort-err "Can't modify Netspoc files:"
         fi
+        unset FIRST_JOB
     done
     if netspoc -q netspoc 2>err; then
         # Success.
