@@ -134,20 +134,19 @@ More examples:
       }
     }
 
-Network may be ommitted, because name of host is unambiguous:
-
-    { "method": "add",
-      "params": {
-        "path": "host:h4",
-        "value": { "ip": "10.1.2.4" }
-      }
-    }
-
 ##### Delete host
 
     { "method": "delete",
       "params": {
         "path": "network:n2,host:h4"
+      }
+    }
+
+Name of network may be ommitted, because name of host is unambiguous:
+
+    { "method": "delete",
+      "params": {
+        "path": "host:h4"
       }
     }
 
