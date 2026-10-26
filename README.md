@@ -125,7 +125,32 @@ More examples:
       }
     }
 
-##### Add VIP interface to existing router.
+###### Add new host to existing network
+
+    { "method": "add",
+      "params": {
+        "path": "network:n2,host:h4",
+        "value": { "ip": "10.1.2.4" }
+      }
+    }
+
+###### Delete host
+
+    { "method": "delete",
+      "params": {
+        "path": "network:n2,host:h4"
+      }
+    }
+
+Network may be ommitted, because name of host is unambiguous:
+
+    { "method": "delete",
+      "params": {
+        "path": "host:h4"
+      }
+    }
+
+##### Add VIP interface to existing router
 
     { "method": "add",
       "params": {
@@ -135,14 +160,6 @@ More examples:
             "vip": null,
             "owner": "o1"
         }
-      }
-    }
-
-###### Delete host
-
-    { "method": "delete",
-      "params": {
-        "path": "host:h2"
       }
     }
 
