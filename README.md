@@ -136,9 +136,10 @@ More examples:
 
 Network may be ommitted, because name of host is unambiguous:
 
-    { "method": "delete",
+    { "method": "add",
       "params": {
-        "path": "host:h4"
+        "path": "host:h4",
+        "value": { "ip": "10.1.2.4" }
       }
     }
 
