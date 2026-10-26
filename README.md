@@ -116,7 +116,7 @@ Example:
 
 More examples:
 
-###### Add new network
+##### Add new network
 
     { "method": "add",
       "params": {
@@ -125,7 +125,7 @@ More examples:
       }
     }
 
-###### Add new host to existing network
+##### Add new host to existing network
 
     { "method": "add",
       "params": {
@@ -134,19 +134,19 @@ More examples:
       }
     }
 
-###### Delete host
-
-    { "method": "delete",
-      "params": {
-        "path": "network:n2,host:h4"
-      }
-    }
-
 Network may be ommitted, because name of host is unambiguous:
 
     { "method": "delete",
       "params": {
         "path": "host:h4"
+      }
+    }
+
+##### Delete host
+
+    { "method": "delete",
+      "params": {
+        "path": "network:n2,host:h4"
       }
     }
 
